@@ -13,7 +13,7 @@ export const useControlTempStore = create<ControlTempStore>((set, get) => ({
   deviceStatus: undefined,
   setDeviceStatus: (newDeviceStatus) => {
     const { deviceStatus } = get();
-    const updatedDeviceStatus = _.merge(deviceStatus, newDeviceStatus);
+    const updatedDeviceStatus = _.merge({}, deviceStatus, newDeviceStatus);
     set({ deviceStatus: updatedDeviceStatus });
   },
 }));
