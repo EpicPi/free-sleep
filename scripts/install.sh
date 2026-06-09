@@ -4,7 +4,9 @@ set -euo pipefail
 
 # --------------------------------------------------------------------------------
 # Variables
-REPO_URL="https://github.com/throwaway31265/free-sleep/archive/refs/heads/main.zip"
+FREE_SLEEP_REPO="${FREE_SLEEP_REPO:-EpicPi/free-sleep}"
+FREE_SLEEP_BRANCH="${FREE_SLEEP_BRANCH:-main}"
+REPO_URL="https://github.com/${FREE_SLEEP_REPO}/archive/refs/heads/${FREE_SLEEP_BRANCH}.zip"
 ZIP_FILE="free-sleep.zip"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
@@ -12,8 +14,9 @@ USERNAME="dac"
 
 # --------------------------------------------------------------------------------
 # Download the repository
-echo "Downloading the repository..."
+echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH}..."
 curl -L -o "$ZIP_FILE" "$REPO_URL"
+EXTRACTED_DIR="$(unzip -Z1 "$ZIP_FILE" | head -1 | cut -d/ -f1)"
 
 echo ""
 echo "Unzipping the repository..."
@@ -24,7 +27,7 @@ rm -f "$ZIP_FILE"
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
 rm -rf "$REPO_DIR"
-mv free-sleep-main "$REPO_DIR"
+mv "$EXTRACTED_DIR" "$REPO_DIR"
 
 
 chown -R "$USERNAME":"$USERNAME" "$REPO_DIR"
