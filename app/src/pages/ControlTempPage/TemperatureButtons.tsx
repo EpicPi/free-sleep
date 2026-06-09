@@ -2,43 +2,52 @@ import { useRef, useCallback } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { Button, Box } from '@mui/material';
 import { Add, Remove } from '@mui/icons-material';
+import { DeepPartial } from 'ts-essentials';
 import { useControlTempStore } from './controlTempStore.tsx';
 import { useAppStore } from '@state/appStore.tsx';
 import { postDeviceStatus } from '@api/deviceStatus.ts';
+import { DeviceStatus } from '@api/deviceStatusSchema.ts';
 import { useSettings } from '@api/settings.ts';
 import { MIN_TEMP_F, MAX_TEMP_F } from '@lib/temperatureConversions.ts';
+import { useOptimisticDeviceStatus } from './useOptimisticDeviceStatus.ts';
 
 type TemperatureButtonsProps = {
   refetch: any;
   currentTargetTemp: number;
 }
 
-const DEBOUNCE_MS = 2000;
+const DEBOUNCE_MS = 500;
 export default function TemperatureButtons({ refetch, currentTargetTemp }: TemperatureButtonsProps) {
-  const { side, setIsUpdating, isUpdating } = useAppStore();
-  const { deviceStatus, setDeviceStatus } = useControlTempStore();
+  const { side, isUpdating } = useAppStore();
+  const { deviceStatus } = useControlTempStore();
+  const setOptimisticDeviceStatus = useOptimisticDeviceStatus();
   const { data: settings } = useSettings();
   const theme = useTheme();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTargetTemperatureF = useRef<number | undefined>(undefined);
 
-  const postUpdate = useCallback(async () => {
-    setIsUpdating(true);
+  const postUpdate = useCallback(async (targetTemperatureF: number) => {
     try {
       await postDeviceStatus({
-        [side]: { targetTemperatureF: deviceStatus?.[side]?.targetTemperatureF },
+        [side]: { targetTemperatureF },
       });
-      await new Promise(r => setTimeout(r, 1_500));
-      await refetch?.();
     } catch (err) {
       console.error(err);
     } finally {
-      setIsUpdating(false);
+      void refetch?.().catch((error: unknown) => {
+        console.error(error);
+      });
     }
-  }, [deviceStatus, side, refetch, setIsUpdating]);
+  }, [side, refetch]);
 
-  const scheduleUpdate = useCallback(() => {
+  const scheduleUpdate = useCallback((targetTemperatureF: number) => {
+    pendingTargetTemperatureF.current = targetTemperatureF;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(postUpdate, DEBOUNCE_MS);
+    debounceTimer.current = setTimeout(() => {
+      const nextTargetTemperatureF = pendingTargetTemperatureF.current;
+      if (nextTargetTemperatureF === undefined) return;
+      void postUpdate(nextTargetTemperatureF);
+    }, DEBOUNCE_MS);
   }, [postUpdate]);
 
 
@@ -51,14 +60,18 @@ export default function TemperatureButtons({ refetch, currentTargetTemp }: Tempe
 
   const handleClick = (change: number) => {
     if (!deviceStatus) return;
-    if (deviceStatus === undefined) return;
-    setDeviceStatus({
+    const targetTemperatureF = Math.min(
+      MAX_TEMP_F,
+      Math.max(MIN_TEMP_F, deviceStatus[side].targetTemperatureF + change)
+    );
+    const nextDeviceStatus: DeepPartial<DeviceStatus> = {
       [side]: {
-        targetTemperatureF: deviceStatus[side].targetTemperatureF + change,
+        targetTemperatureF,
       }
-    });
+    };
 
-    scheduleUpdate();
+    setOptimisticDeviceStatus(nextDeviceStatus);
+    scheduleUpdate(targetTemperatureF);
   };
 
   const buttonStyle = {
