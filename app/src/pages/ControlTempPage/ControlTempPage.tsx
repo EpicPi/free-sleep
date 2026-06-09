@@ -4,6 +4,7 @@ import { Box, CircularProgress } from '@mui/material';
 
 import AlarmDismissal from './AlarmDismissal.tsx';
 import AlarmNotification from './AlarmNotification.tsx';
+import AwayModeToggle from './AwayModeToggle.tsx';
 import AwayNotification from './AwayNotification.tsx';
 import ErrorBoundary from '@components/ErrorBoundary.tsx';
 import PageContainer from '../PageContainer.tsx';
@@ -55,17 +56,31 @@ export default function ControlTempPage() {
         displayCelsius={ settings?.temperatureFormat === 'celsius' || false }
       />
 
-      { isError ? (
-        <Button
-          variant="contained"
-          onClick={ () => refetch() }
-          disabled={ isUpdating }
-        >
-          Try again
-        </Button>
-      ) : (
-        <PowerButton isOn={ sideStatus?.isOn || false } refetch={ refetch }/>
-      ) }
+      <Box
+        sx={ {
+          mt: -6,
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          gap: 1,
+          flexWrap: 'wrap',
+        } }
+      >
+        { isError ? (
+          <Button
+            variant="contained"
+            onClick={ () => refetch() }
+            disabled={ isUpdating }
+          >
+            Try again
+          </Button>
+        ) : (
+          <PowerButton isOn={ sideStatus?.isOn || false } refetch={ refetch }/>
+        ) }
+
+        <AwayModeToggle/>
+      </Box>
+
 
       <Box sx={ { display: 'flex', flexDirection: 'column', gap: 1 } }>
         {

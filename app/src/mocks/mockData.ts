@@ -530,7 +530,19 @@ export const updateSettings = (partial: Partial<Settings>) => {
 
 export const getDeviceStatus = () => deviceStatus;
 export const updateDeviceStatus = (partial: Partial<DeviceStatus>) => {
-  deviceStatus = mergeDeep(clone(deviceStatus), partial) as DeviceStatus;
+  const controlBothSides = settings.left.awayMode || settings.right.awayMode;
+  const fanoutPartial = clone(partial);
+
+  if (controlBothSides && partial.left) {
+    fanoutPartial.left = partial.left;
+    fanoutPartial.right = partial.left;
+  }
+  if (controlBothSides && partial.right) {
+    fanoutPartial.left = partial.right;
+    fanoutPartial.right = partial.right;
+  }
+
+  deviceStatus = mergeDeep(clone(deviceStatus), fanoutPartial) as DeviceStatus;
   return deviceStatus;
 };
 
@@ -596,4 +608,3 @@ export const handleJobs = (jobs: Jobs) => {
     appendLogEntry('free-sleep.log', `[${timestamp}] INFO Job executed: ${job}`);
   });
 };
-

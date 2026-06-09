@@ -8,6 +8,12 @@
   "description": "Free Sleep",
   "icons": [
     {
+      "src": "/free-sleep-icon_32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "/free-sleep-icon_96.png",
       "sizes": "96x96",
       "type": "image/png",
