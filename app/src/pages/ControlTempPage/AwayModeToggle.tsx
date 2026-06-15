@@ -4,18 +4,17 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { DeepPartial } from 'ts-essentials';
 
-import { getDeviceStatus, postDeviceStatus, useDeviceStatus } from '@api/deviceStatus.ts';
+import { getDeviceStatus, useDeviceStatusMutation } from '@api/deviceStatus.ts';
+import { DeviceStatus } from '@api/deviceStatusSchema.ts';
 import { Settings } from '@api/settingsSchema.ts';
 import { postSettings, useSettings } from '@api/settings.ts';
 import { useAppStore } from '@state/appStore.tsx';
-import { useOptimisticDeviceStatus } from './useOptimisticDeviceStatus.ts';
 
 export default function AwayModeToggle() {
   const { data: settings, refetch } = useSettings();
-  const { refetch: refetchDeviceStatus } = useDeviceStatus();
   const { isUpdating, side } = useAppStore();
   const queryClient = useQueryClient();
-  const setOptimisticDeviceStatus = useOptimisticDeviceStatus();
+  const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
   const [isSaving, setIsSaving] = useState(false);
 
   const sideName = settings?.[side]?.name || `${side.charAt(0).toUpperCase()}${side.slice(1)} side`;
@@ -33,20 +32,23 @@ export default function AwayModeToggle() {
     const { data: status } = await getDeviceStatus();
     const activeSideStatus = status[activeSide];
 
-    await postDeviceStatus({
+    const deviceStatusPatch: DeepPartial<DeviceStatus> = {
       [activeSide]: {
         isOn: activeSideStatus.isOn,
         targetTemperatureF: activeSideStatus.targetTemperatureF,
       }
-    });
-    setOptimisticDeviceStatus({
-      left: {
-        isOn: activeSideStatus.isOn,
-        targetTemperatureF: activeSideStatus.targetTemperatureF,
-      },
-      right: {
-        isOn: activeSideStatus.isOn,
-        targetTemperatureF: activeSideStatus.targetTemperatureF,
+    };
+
+    await mutateDeviceStatus(deviceStatusPatch, {
+      optimisticPatch: {
+        left: {
+          isOn: activeSideStatus.isOn,
+          targetTemperatureF: activeSideStatus.targetTemperatureF,
+        },
+        right: {
+          isOn: activeSideStatus.isOn,
+          targetTemperatureF: activeSideStatus.targetTemperatureF,
+        },
       },
     });
   };
@@ -67,10 +69,7 @@ export default function AwayModeToggle() {
     } catch (error) {
       console.error(error);
     } finally {
-      void Promise.all([
-        refetch(),
-        refetchDeviceStatus(),
-      ]).catch(error => {
+      void refetch().catch(error => {
         console.error(error);
       });
       setIsSaving(false);
@@ -80,7 +79,7 @@ export default function AwayModeToggle() {
   return (
     <Button
       variant={ checked ? 'contained' : 'outlined' }
-      disabled={ isSaving || isUpdating || !settings }
+      disabled={ isSaving || isPending || isUpdating || !settings }
       onClick={ () => void handleClick() }
       aria-pressed={ checked }
       aria-label={ checked ? `Mark ${sideName} back` : `Set ${sideName} away` }

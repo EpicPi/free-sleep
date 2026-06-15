@@ -3,7 +3,7 @@ import { useAppStore } from '@state/appStore';
 import styles from './Slider.module.scss';
 import TemperatureLabel from './TemperatureLabel.tsx';
 import TemperatureButtons from './TemperatureButtons.tsx';
-import { useControlTempStore } from './controlTempStore.tsx';
+import { useDeviceStatusStore } from '@state/deviceStatusStore.ts';
 import { useTheme } from '@mui/material/styles';
 import { useResizeDetector } from 'react-resize-detector';
 import { MAX_TEMP_F, MIN_TEMP_F, getTemperatureColor } from '@lib/temperatureConversions.ts';
@@ -12,14 +12,13 @@ type SliderProps = {
   isOn: boolean;
   currentTargetTemp: number;
   currentTemperatureF: number;
-  refetch: any;
   displayCelsius: boolean;
 }
 
 const ignoreCircularSelectorChange = () => undefined;
 
-export default function Slider({ isOn, currentTargetTemp, refetch, currentTemperatureF, displayCelsius }: SliderProps) {
-  const { deviceStatus } = useControlTempStore();
+export default function Slider({ isOn, currentTargetTemp, currentTemperatureF, displayCelsius }: SliderProps) {
+  const { deviceStatus } = useDeviceStatusStore();
   const { side } = useAppStore();
   const { width, ref } = useResizeDetector();
   const theme = useTheme();
@@ -75,7 +74,7 @@ export default function Slider({ isOn, currentTargetTemp, refetch, currentTemper
       </div>
       {
         isOn && (
-          <TemperatureButtons refetch={ refetch } currentTargetTemp={ currentTargetTemp }/>
+          <TemperatureButtons currentTargetTemp={ currentTargetTemp }/>
         ) }
     </div>
   );

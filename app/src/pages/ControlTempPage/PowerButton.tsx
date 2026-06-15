@@ -1,6 +1,6 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { Button, Box } from '@mui/material';
-import { postDeviceStatus } from '@api/deviceStatus.ts';
+import { useDeviceStatusMutation } from '@api/deviceStatus.ts';
 import { DeviceStatus } from '@api/deviceStatusSchema.ts';
 import { DeepPartial } from 'ts-essentials';
 import { useAppStore } from '@state/appStore.tsx';
@@ -9,23 +9,19 @@ import { useState } from 'react';
 import { useServices } from '@api/services.ts';
 import { Job, postJobs } from '@api/jobs.ts';
 import AnalyzeSleepNotification from './AnalyzeSleepNotification.tsx';
-import { useOptimisticDeviceStatus } from './useOptimisticDeviceStatus.ts';
 
 
 type PowerButtonProps = {
   isOn: boolean;
-  refetch: any;
 }
 
-const REFRESH_AFTER_WRITE_MS = 1_500;
-export default function PowerButton({ isOn, refetch }: PowerButtonProps) {
+export default function PowerButton({ isOn }: PowerButtonProps) {
   const { isUpdating, side } = useAppStore();
   const { data: settings } = useSettings();
   const { data: services } = useServices();
-  const setOptimisticDeviceStatus = useOptimisticDeviceStatus();
+  const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
   const isInAwayMode = settings?.[side].awayMode;
-  const [isSaving, setIsSaving] = useState(false);
-  const disabled = isSaving || isUpdating || isInAwayMode;
+  const disabled = isPending || isUpdating || isInAwayMode;
   const [showAnalyzeSleep, setShowAnalyzeSleep] = useState(false);
   const [showAnalyzeNotification, setShowAnalyzeNotification] = useState(false);
 
@@ -42,19 +38,9 @@ export default function PowerButton({ isOn, refetch }: PowerButtonProps) {
       setTimeout(() => setShowAnalyzeSleep(false), 20_000);
     }
 
-    setIsSaving(true);
-    setOptimisticDeviceStatus(deviceStatus);
-    postDeviceStatus(deviceStatus)
-      .catch(error => {
+    void mutateDeviceStatus(deviceStatus)
+      .catch((error: unknown) => {
         console.error(error);
-      })
-      .finally(() => {
-        setIsSaving(false);
-        setTimeout(() => {
-          void refetch?.().catch((error: unknown) => {
-            console.error(error);
-          });
-        }, REFRESH_AFTER_WRITE_MS);
       });
   };
 
@@ -76,7 +62,7 @@ export default function PowerButton({ isOn, refetch }: PowerButtonProps) {
         { isOn ? 'Turn off' : 'Turn on' }
       </Button>
       {
-        showAnalyzeSleep && !isUpdating && !isSaving && services?.biometrics?.enabled && (
+        showAnalyzeSleep && !isUpdating && !isPending && services?.biometrics?.enabled && (
           <Button
             variant="contained"
             disabled={ disabled }

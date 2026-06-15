@@ -1,31 +1,22 @@
 import Button from '@mui/material/Button';
-import { postDeviceStatus } from '@api/deviceStatus.ts';
+import { useDeviceStatusMutation } from '@api/deviceStatus.ts';
 import { useAppStore } from '@state/appStore.tsx';
 
-type PrimeButtonProps = {
-  refetch: any;
-}
-
-export default function PrimeButton({ refetch }: PrimeButtonProps) {
-  const { setIsUpdating, isUpdating } = useAppStore();
+export default function PrimeButton() {
+  const { isUpdating } = useAppStore();
+  const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
 
   const handleClick = () => {
-    setIsUpdating(true);
-    postDeviceStatus({
+    void mutateDeviceStatus({
       isPriming: true,
     })
-      .then(() => {
-        // Wait 1 second before refreshing the device status
-        return new Promise((resolve) => setTimeout(resolve, 1_000));
-      })
-      .then(() => refetch())
-      .catch(error => {
+      .catch((error: unknown) => {
         console.error(error);
       });
   };
 
   return (
-    <Button variant="contained" onClick={ handleClick } disabled={ isUpdating }>
+    <Button variant="contained" onClick={ handleClick } disabled={ isUpdating || isPending }>
       Prime now
     </Button>
   );
