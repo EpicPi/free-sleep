@@ -17,6 +17,7 @@ type PowerButtonProps = {
   refetch: any;
 }
 
+const REFRESH_AFTER_WRITE_MS = 1_500;
 export default function PowerButton({ isOn, refetch }: PowerButtonProps) {
   const { isUpdating, side } = useAppStore();
   const { data: settings } = useSettings();
@@ -49,9 +50,11 @@ export default function PowerButton({ isOn, refetch }: PowerButtonProps) {
       })
       .finally(() => {
         setIsSaving(false);
-        void refetch?.().catch((error: unknown) => {
-          console.error(error);
-        });
+        setTimeout(() => {
+          void refetch?.().catch((error: unknown) => {
+            console.error(error);
+          });
+        }, REFRESH_AFTER_WRITE_MS);
       });
   };
 
