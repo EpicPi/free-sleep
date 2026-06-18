@@ -16,7 +16,8 @@ USERNAME="dac"
 # Download the repository
 echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH}..."
 curl -L -o "$ZIP_FILE" "$REPO_URL"
-EXTRACTED_DIR="$(unzip -l "$ZIP_FILE" | awk 'NR > 3 && $4 != "" { print $4; exit }' | cut -d/ -f1)"
+# Keep awk reading the full listing so BusyBox unzip does not hit SIGPIPE under pipefail.
+EXTRACTED_DIR="$(unzip -l "$ZIP_FILE" | awk 'NR > 3 && $4 ~ /\// && !found { split($4, pathParts, "/"); print pathParts[1]; found = 1 }')"
 if [ -z "$EXTRACTED_DIR" ]; then
   echo "Unable to determine extracted repository directory from $ZIP_FILE"
   exit 1
