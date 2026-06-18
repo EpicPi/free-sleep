@@ -3,50 +3,54 @@ import { useTheme } from '@mui/material/styles';
 import { Button, Box } from '@mui/material';
 import { Add, Remove } from '@mui/icons-material';
 import { DeepPartial } from 'ts-essentials';
-import { useControlTempStore } from './controlTempStore.tsx';
-import { useAppStore } from '@state/appStore.tsx';
-import { postDeviceStatus } from '@api/deviceStatus.ts';
+import { type Side, useAppStore } from '@state/appStore.tsx';
+import {
+  DEVICE_STATUS_RECONCILE_DELAY_MS,
+  useDeviceStatusMutation,
+} from '@api/deviceStatus.ts';
 import { DeviceStatus } from '@api/deviceStatusSchema.ts';
 import { useSettings } from '@api/settings.ts';
 import { MIN_TEMP_F, MAX_TEMP_F } from '@lib/temperatureConversions.ts';
-import { useOptimisticDeviceStatus } from './useOptimisticDeviceStatus.ts';
+import { useDeviceStatusStore } from '@state/deviceStatusStore.ts';
 
 type TemperatureButtonsProps = {
-  refetch: any;
   currentTargetTemp: number;
 }
 
 const DEBOUNCE_MS = 500;
-export default function TemperatureButtons({ refetch, currentTargetTemp }: TemperatureButtonsProps) {
+export default function TemperatureButtons({ currentTargetTemp }: TemperatureButtonsProps) {
   const { side, isUpdating } = useAppStore();
-  const { deviceStatus } = useControlTempStore();
-  const setOptimisticDeviceStatus = useOptimisticDeviceStatus();
+  const { deviceStatus } = useDeviceStatusStore();
+  const { applyOptimisticDeviceStatus, mutateDeviceStatus } = useDeviceStatusMutation();
   const { data: settings } = useSettings();
   const theme = useTheme();
-  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingTargetTemperatureF = useRef<number | undefined>(undefined);
+  const debounceTimers = useRef<Partial<Record<Side, ReturnType<typeof setTimeout>>>>({});
+  const pendingTargetTemperatures = useRef<Partial<Record<Side, number>>>({});
 
-  const postUpdate = useCallback(async (targetTemperatureF: number) => {
+  const postUpdate = useCallback(async (updateSide: Side, targetTemperatureF: number) => {
     try {
-      await postDeviceStatus({
-        [side]: { targetTemperatureF },
-      });
+      const nextDeviceStatus: DeepPartial<DeviceStatus> = {
+        [updateSide]: { targetTemperatureF },
+      };
+      await mutateDeviceStatus(nextDeviceStatus, { optimistic: false, trackPending: false });
     } catch (err) {
       console.error(err);
     } finally {
-      void refetch?.().catch((error: unknown) => {
-        console.error(error);
-      });
+      setTimeout(() => {
+        if (pendingTargetTemperatures.current[updateSide] !== targetTemperatureF) return;
+        delete pendingTargetTemperatures.current[updateSide];
+      }, DEVICE_STATUS_RECONCILE_DELAY_MS);
     }
-  }, [side, refetch]);
+  }, [mutateDeviceStatus]);
 
-  const scheduleUpdate = useCallback((targetTemperatureF: number) => {
-    pendingTargetTemperatureF.current = targetTemperatureF;
-    if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    debounceTimer.current = setTimeout(() => {
-      const nextTargetTemperatureF = pendingTargetTemperatureF.current;
+  const scheduleUpdate = useCallback((updateSide: Side, targetTemperatureF: number) => {
+    pendingTargetTemperatures.current[updateSide] = targetTemperatureF;
+    const currentTimer = debounceTimers.current[updateSide];
+    if (currentTimer) clearTimeout(currentTimer);
+    debounceTimers.current[updateSide] = setTimeout(() => {
+      const nextTargetTemperatureF = pendingTargetTemperatures.current[updateSide];
       if (nextTargetTemperatureF === undefined) return;
-      void postUpdate(nextTargetTemperatureF);
+      void postUpdate(updateSide, nextTargetTemperatureF);
     }, DEBOUNCE_MS);
   }, [postUpdate]);
 
@@ -60,9 +64,10 @@ export default function TemperatureButtons({ refetch, currentTargetTemp }: Tempe
 
   const handleClick = (change: number) => {
     if (!deviceStatus) return;
+    const currentTargetTemperatureF = pendingTargetTemperatures.current[side] ?? deviceStatus[side].targetTemperatureF;
     const targetTemperatureF = Math.min(
       MAX_TEMP_F,
-      Math.max(MIN_TEMP_F, deviceStatus[side].targetTemperatureF + change)
+      Math.max(MIN_TEMP_F, currentTargetTemperatureF + change)
     );
     const nextDeviceStatus: DeepPartial<DeviceStatus> = {
       [side]: {
@@ -70,8 +75,8 @@ export default function TemperatureButtons({ refetch, currentTargetTemp }: Tempe
       }
     };
 
-    setOptimisticDeviceStatus(nextDeviceStatus);
-    scheduleUpdate(targetTemperatureF);
+    applyOptimisticDeviceStatus(nextDeviceStatus);
+    scheduleUpdate(side, targetTemperatureF);
   };
 
   const buttonStyle = {

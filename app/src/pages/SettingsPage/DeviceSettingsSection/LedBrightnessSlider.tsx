@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { postDeviceStatus, useDeviceStatus } from '@api/deviceStatus.ts';
+import { useDeviceStatus, useDeviceStatusMutation } from '@api/deviceStatus.ts';
 import { DeviceStatus } from '@api/deviceStatusSchema.ts';
 import _ from 'lodash';
 import { useAppStore } from '@state/appStore.tsx';
 import { Box, Slider, Typography } from '@mui/material';
 
 export default function LedBrightnessSlider() {
-  const { isUpdating, setIsUpdating } = useAppStore();
-  const { data: deviceStatus, refetch } = useDeviceStatus();
+  const { isUpdating } = useAppStore();
+  const { data: deviceStatus } = useDeviceStatus();
+  const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
   const [settingsCopy, setSettingsCopy] = useState<undefined | DeviceStatus['settings']>();
   useEffect(() => {
     if (!deviceStatus) return;
@@ -21,20 +22,12 @@ export default function LedBrightnessSlider() {
   };
 
   const handleSave = () => {
-    setIsUpdating(true);
-    postDeviceStatus({
+    if (!settingsCopy) return;
+    void mutateDeviceStatus({
       settings: settingsCopy,
     })
-      .then(() => {
-        // Wait 1 second before refreshing the device status
-        return new Promise((resolve) => setTimeout(resolve, 1_000));
-      })
-      .then(() => refetch())
-      .catch(error => {
+      .catch((error: unknown) => {
         console.error(error);
-      })
-      .finally(() => {
-        setIsUpdating(false);
       });
   };
   return (
@@ -58,7 +51,7 @@ export default function LedBrightnessSlider() {
           { value: 0, label: 'Off' },
           { value: 100, label: '100%' },
         ] }
-        disabled={ isUpdating }
+        disabled={ isUpdating || isPending }
         sx={ { width: '100%', ml: 2 } }
       />
     </Box>

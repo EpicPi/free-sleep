@@ -14,15 +14,15 @@ import SideControl from '../../components/SideControl.tsx';
 import Slider from './Slider.tsx';
 import WaterNotification from './WaterNotification.tsx';
 import { useAppStore } from '@state/appStore.tsx';
-import { useControlTempStore } from './controlTempStore.tsx';
 import { useDeviceStatus } from '@api/deviceStatus';
+import { useDeviceStatusStore } from '@state/deviceStatusStore.ts';
 import { useSettings } from '@api/settings.ts';
 import { useTheme } from '@mui/material/styles';
 
 
 export default function ControlTempPage() {
   const { isError, refetch, data: deviceStatus } = useDeviceStatus();
-  const setDeviceStatus = useControlTempStore(state => state.setDeviceStatus);
+  const setDeviceStatus = useDeviceStatusStore(state => state.setDeviceStatus);
   const { data: settings } = useSettings();
   const { isUpdating, side } = useAppStore();
   const theme = useTheme();
@@ -51,7 +51,6 @@ export default function ControlTempPage() {
       <Slider
         isOn={ isOn }
         currentTargetTemp={ sideStatus?.targetTemperatureF || 55 }
-        refetch={ refetch }
         currentTemperatureF={ sideStatus?.currentTemperatureF || 55 }
         displayCelsius={ settings?.temperatureFormat === 'celsius' || false }
       />
@@ -75,7 +74,7 @@ export default function ControlTempPage() {
             Try again
           </Button>
         ) : (
-          <PowerButton isOn={ sideStatus?.isOn || false } refetch={ refetch }/>
+          <PowerButton isOn={ sideStatus?.isOn || false }/>
         ) }
 
         <AwayModeToggle/>
@@ -94,7 +93,7 @@ export default function ControlTempPage() {
         <AwayNotification settings={ settings }/>
         <WaterNotification/>
       </Box>
-      <AlarmDismissal refetch={ refetch }/>
+      <AlarmDismissal/>
       { isUpdating && <CircularProgress/> }
       <SideControl showTemp={ true }/>
     </PageContainer>

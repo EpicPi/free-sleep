@@ -9,13 +9,8 @@ import {
 import { useAppStore } from '@state/appStore.tsx';
 import AlarmIcon from '@mui/icons-material/Alarm';
 import { keyframes } from '@mui/system';
-import { postDeviceStatus } from '@api/deviceStatus.ts';
-import { useControlTempStore } from './controlTempStore.tsx';
-
-
-type AlarmDismissalProps = {
-  refetch: any;
-}
+import { useDeviceStatusMutation } from '@api/deviceStatus.ts';
+import { useDeviceStatusStore } from '@state/deviceStatusStore.ts';
 
 const pulse = keyframes`
     0% { transform: scale(1) translateX(0); }
@@ -28,9 +23,10 @@ const pulse = keyframes`
 `;
 
 
-export default function AlarmDismissal({ refetch }: AlarmDismissalProps) {
-  const { side, setIsUpdating } = useAppStore();
-  const deviceStatus = useControlTempStore(state => state.deviceStatus);
+export default function AlarmDismissal() {
+  const { side } = useAppStore();
+  const deviceStatus = useDeviceStatusStore(state => state.deviceStatus);
+  const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
 
   const [dismissed, setDismissed] = useState(false);
 
@@ -39,22 +35,15 @@ export default function AlarmDismissal({ refetch }: AlarmDismissalProps) {
 
 
   const handleDismiss = () => {
-    setIsUpdating(true);
-    postDeviceStatus({
+    void mutateDeviceStatus({
       [side]: {
         isAlarmVibrating: false,
       }
     })
-      .then(() => {
-        // Wait 1 second before refreshing the device status
-        return new Promise((resolve) => setTimeout(resolve, 1_000));
-      })
-      .then(() => refetch())
-      .catch(error => {
+      .catch((error: unknown) => {
         console.error(error);
       })
       .finally(() => {
-        setIsUpdating(false);
         setDismissed(true);
       });
   };
@@ -95,6 +84,7 @@ export default function AlarmDismissal({ refetch }: AlarmDismissalProps) {
           onClick={ handleDismiss }
           color="error"
           variant="contained"
+          disabled={ isPending }
         >
           Dismiss Alarm
         </Button>
