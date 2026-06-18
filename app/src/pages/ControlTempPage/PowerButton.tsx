@@ -8,6 +8,8 @@ import { useSettings } from '@api/settings.ts';
 import { useState } from 'react';
 import { useServices } from '@api/services.ts';
 import { Job, postJobs } from '@api/jobs.ts';
+import { useSchedules } from '@api/schedules.ts';
+import { getScheduledTargetTemperature } from '@lib/scheduleTemperature.ts';
 import AnalyzeSleepNotification from './AnalyzeSleepNotification.tsx';
 
 
@@ -20,15 +22,20 @@ export default function PowerButton({ isOn }: PowerButtonProps) {
   const { data: settings } = useSettings();
   const { data: services } = useServices();
   const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
+  const { data: schedules } = useSchedules();
   const isInAwayMode = settings?.[side].awayMode;
   const disabled = isPending || isUpdating || isInAwayMode;
   const [showAnalyzeSleep, setShowAnalyzeSleep] = useState(false);
   const [showAnalyzeNotification, setShowAnalyzeNotification] = useState(false);
 
   const handleOnClick = (powerOn: boolean) => {
+    const scheduledTargetTemperature = powerOn
+      ? getScheduledTargetTemperature(schedules?.[side], settings?.timeZone)
+      : undefined;
     const deviceStatus: DeepPartial<DeviceStatus> = {
       [side]: {
-        isOn: powerOn
+        isOn: powerOn,
+        ...(scheduledTargetTemperature === undefined ? {} : { targetTemperatureF: scheduledTargetTemperature }),
       }
     };
     if (powerOn) {
@@ -45,10 +52,10 @@ export default function PowerButton({ isOn }: PowerButtonProps) {
   };
 
   const handleAnalyzeSleep = () => {
-    const capitalized = side.charAt(0).toUpperCase() + side.slice(1) as Job;
+    const capitalizedSide = side.charAt(0).toUpperCase() + side.slice(1) as 'Left' | 'Right';
+    const analyzeSleepJob = `analyzeSleep${capitalizedSide}` as Job;
     setShowAnalyzeNotification(true);
-    // @ts-expect-error
-    postJobs([`analyzeSleep${capitalized}`])
+    postJobs([analyzeSleepJob])
       .catch(error => {
         console.error(error);
       });
