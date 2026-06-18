@@ -1,5 +1,3 @@
-
-!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="06057641-4ecd-5809-98b7-74a1353640a9")}catch(e){}}();
 import path from 'path';
 import chokidar from 'chokidar';
 import moment from 'moment-timezone';
@@ -35,13 +33,11 @@ async function setupJobs() {
         logger.info('Scheduling jobs...');
         scheduleAlarmOverride(settingsData, 'left');
         scheduleAlarmOverride(settingsData, 'right');
-        Object.entries(schedulesData).forEach(([side, sideSchedule]) => {
-            Object.entries(sideSchedule).forEach(([day, schedule]) => {
-                schedulePowerOn(settingsData, side, day, schedule.power);
-                schedulePowerOffAndSleepAnalysis(settingsData, side, day, schedule.power);
-                scheduleTemperatures(settingsData, side, day, schedule.temperatures);
-                scheduleAlarm(settingsData, side, day, schedule);
-            });
+        Object.entries(schedulesData).forEach(([side, dailySchedule]) => {
+            schedulePowerOn(settingsData, side, dailySchedule.power);
+            schedulePowerOffAndSleepAnalysis(settingsData, side, dailySchedule.power);
+            scheduleTemperatures(settingsData, side, dailySchedule.temperatures);
+            scheduleAlarm(settingsData, side, dailySchedule);
         });
         schedulePrimingRebootAndCalibration(settingsData);
         logger.info('Done scheduling jobs!');
@@ -102,4 +98,3 @@ chokidar.watch(config.lowDbFolder).on('change', (changedPath) => {
 // Initial job setup
 waitForValidDateAndSetupJobs();
 //# sourceMappingURL=jobScheduler.js.map
-//# debugId=06057641-4ecd-5809-98b7-74a1353640a9

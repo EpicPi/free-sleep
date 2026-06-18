@@ -11,7 +11,6 @@ import { useAppStore } from '@state/appStore.tsx';
 import { useSchedules } from '@api/schedules.ts';
 import { useSettings } from '@api/settings.ts';
 import { useEffect, useState } from 'react';
-import { DayOfWeek } from '../../../../server/src/db/schedulesSchema.ts';
 import AlarmOverride from './AlarmOverride.tsx';
 import AlarmDisabledDialog from './AlarmDisabledDialog.tsx';
 
@@ -24,9 +23,8 @@ export default function AlarmNotification() {
   const [disabledOpen, setDisabledOpen] = useState(false);
   const [alarmTimeLocalOverride, setAlarmTimeLocalOverride] = useState<string>('');
   const [alarmDisabled, setAlarmDisabled] = useState(false);
-  const currentDay = moment.tz(settings?.timeZone || 'UTC').subtract(12, 'hours').format('dddd').toLowerCase() as DayOfWeek;
-  const alarm = schedules?.[side][currentDay].alarm;
-  const power = schedules?.[side][currentDay].power;
+  const alarm = schedules?.[side].alarm;
+  const power = schedules?.[side].power;
 
 
   const [scheduledAlarmTimeAmPm, setScheduledAlarmTimeAmPm] = useState('');
@@ -34,7 +32,7 @@ export default function AlarmNotification() {
 
   useEffect(() => {
     if (!settings || !schedules) return;
-    const alarm = schedules[side][currentDay].alarm;
+    const alarm = schedules[side].alarm;
 
     const hhMm = moment(alarm.time, 'HH:mm').format('hh:mm');
     const amPm = moment(alarm.time, 'HH:mm').format('h:mm A');

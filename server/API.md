@@ -138,25 +138,23 @@ The server exposes RESTful endpoints for interaction. All responses are JSON unl
 ```json
 {
   "left": {
-    "monday": {
-      "temperatures": {
-        "07:00": 72,
-        "22:00": 68
-      },
-      "power": {
-        "on": "20:00",
-        "off": "08:00",
-        "onTemperature": 82,
-        "enabled": true
-      },
-      "alarm": {
-        "time": "08:00",
-        "vibrationIntensity": 1,
-        "vibrationPattern": "rise",
-        "duration": 10,
-        "enabled": true,
-        "alarmTemperature": 78
-      }
+    "temperatures": {
+      "07:00": 72,
+      "22:00": 68
+    },
+    "power": {
+      "on": "20:00",
+      "off": "08:00",
+      "onTemperature": 82,
+      "enabled": true
+    },
+    "alarm": {
+      "time": "08:00",
+      "vibrationIntensity": 1,
+      "vibrationPattern": "rise",
+      "duration": 10,
+      "enabled": true,
+      "alarmTemperature": 78
     }
   }
 }
@@ -171,12 +169,10 @@ The server exposes RESTful endpoints for interaction. All responses are JSON unl
 ```json
 {
   "left": {
-    "monday": {
-      "power": {
-        "on": "19:00",
-        "off": "07:00",
-        "enabled": true
-      }
+    "power": {
+      "on": "19:00",
+      "off": "07:00",
+      "enabled": true
     }
   }
 }
@@ -187,22 +183,20 @@ The server exposes RESTful endpoints for interaction. All responses are JSON unl
 ```json
 {
   "left": {
-    "monday": {
-      "temperatures": {},
-      "power": {
-        "on": "19:00",
-        "off": "07:00",
-        "onTemperature": 82,
-        "enabled": true
-      },
-      "alarm": {
-        "time": "08:00",
-        "vibrationIntensityStart": 1,
-        "vibrationIntensityEnd": 1,
-        "duration": 10,
-        "enabled": false,
-        "alarmTemperature": 78
-      }
+    "temperatures": {},
+    "power": {
+      "on": "19:00",
+      "off": "07:00",
+      "onTemperature": 82,
+      "enabled": true
+    },
+    "alarm": {
+      "time": "08:00",
+      "vibrationIntensity": 1,
+      "vibrationPattern": "rise",
+      "duration": 10,
+      "enabled": false,
+      "alarmTemperature": 78
     }
   }
 }
@@ -558,4 +552,3 @@ Timestamps are server-generated.
   }
 }
 ```
-

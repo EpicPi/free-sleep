@@ -43,34 +43,16 @@ export const DailyScheduleSchema = z.object({
   }),
 }).strict();
 
-// Define the SideSchedule schema
-export const SideScheduleSchema = z.object({
-  sunday: DailyScheduleSchema,
-  monday: DailyScheduleSchema,
-  tuesday: DailyScheduleSchema,
-  wednesday: DailyScheduleSchema,
-  thursday: DailyScheduleSchema,
-  friday: DailyScheduleSchema,
-  saturday: DailyScheduleSchema,
-}).strict();
-
-
 // Define the Schedules schema
 export const SchedulesSchema = z.object({
-  left: SideScheduleSchema,
-  right: SideScheduleSchema,
+  left: DailyScheduleSchema,
+  right: DailyScheduleSchema,
 }).strict();
 
 export type DailySchedule = z.infer<typeof DailyScheduleSchema>;
-export type SideSchedule = z.infer<typeof SideScheduleSchema>;
 export type Schedules = z.infer<typeof SchedulesSchema>;
 export type Alarm = z.infer<typeof AlarmSchema>;
 export type AlarmJob = z.infer<typeof AlarmJobSchema>;
 export type AlarmSchedule = z.infer<typeof AlarmScheduleSchema>;
 export type Time = z.infer<typeof TimeSchema>;
-
-// eslint-disable-next-line @typescript-eslint/no-type-alias
-export type DayOfWeek = keyof SideSchedule;
-// eslint-disable-next-line @typescript-eslint/no-type-alias
-// export type Side = keyof Schedules;
 export type Side = z.infer<typeof SideSchema>;

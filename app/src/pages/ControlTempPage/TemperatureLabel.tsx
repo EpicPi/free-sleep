@@ -7,7 +7,6 @@ import { useSettings } from '@api/settings.ts';
 import { useAppStore } from '@state/appStore.tsx';
 import { formatTemperature } from '@lib/temperatureConversions.ts';
 import { getNextScheduledTemperatureChange } from '@lib/scheduleTemperature.ts';
-import type { DayOfWeek } from '@api/schedulesSchema.ts';
 
 
 type TemperatureLabelProps = {
@@ -34,10 +33,7 @@ export default function TemperatureLabel({
   const { data: settings } = useSettings();
   const isInAwayMode = settings?.[side].awayMode;
 
-  const currentDay = settings?.timeZone
-    ? moment.tz(settings.timeZone).format('dddd').toLowerCase() as DayOfWeek
-    : undefined;
-  const power = currentDay ? schedules?.[side]?.[currentDay]?.power : undefined;
+  const power = schedules?.[side]?.power;
   const formattedTime = moment(power?.on, 'HH:mm').format('h:mm A');
   const powerOffTime = moment(power?.off, 'HH:mm').format('h:mm A');
   const nextTemperatureChange = getNextScheduledTemperatureChange(schedules?.[side], settings?.timeZone);
