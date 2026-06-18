@@ -6,6 +6,8 @@ import { useSchedules } from '@api/schedules.ts';
 import { useSettings } from '@api/settings.ts';
 import { useAppStore } from '@state/appStore.tsx';
 import { formatTemperature } from '@lib/temperatureConversions.ts';
+import { getNextScheduledTemperatureChange } from '@lib/scheduleTemperature.ts';
+import type { DayOfWeek } from '@api/schedulesSchema.ts';
 
 
 type TemperatureLabelProps = {
@@ -32,11 +34,22 @@ export default function TemperatureLabel({
   const { data: settings } = useSettings();
   const isInAwayMode = settings?.[side].awayMode;
 
-  const currentDay = settings?.timeZone && moment.tz(settings?.timeZone).format('dddd').toLowerCase();
-  // @ts-expect-error
+  const currentDay = settings?.timeZone
+    ? moment.tz(settings.timeZone).format('dddd').toLowerCase() as DayOfWeek
+    : undefined;
   const power = currentDay ? schedules?.[side]?.[currentDay]?.power : undefined;
   const formattedTime = moment(power?.on, 'HH:mm').format('h:mm A');
   const powerOffTime = moment(power?.off, 'HH:mm').format('h:mm A');
+  const nextTemperatureChange = getNextScheduledTemperatureChange(schedules?.[side], settings?.timeZone);
+  const nextTemperature = nextTemperatureChange
+    ? formatTemperature(nextTemperatureChange.temperatureF, displayCelsius)
+    : undefined;
+  const nextTemperatureChangeTime = nextTemperatureChange?.occursAt.format('h:mm A');
+  const scheduleStatusLabel = nextTemperatureChange
+    ? `Will change to ${nextTemperature} at ${nextTemperatureChangeTime}`
+    : power?.enabled
+      ? `Turns off at ${powerOffTime}`
+      : undefined;
 
   let topTitle: string;
   // Handle user actively changing temp
@@ -109,12 +122,12 @@ export default function TemperatureLabel({
               { `Currently at ${formatTemperature(currentTemperatureF, displayCelsius)}` }
             </Typography>
             {
-              power?.enabled && (
+              scheduleStatusLabel && (
                 <Typography
                   sx={ { textWrap: 'nowrap' } }
                   color={ theme.palette.grey[500] }
                 >
-                  Turns off at { powerOffTime }
+                  { scheduleStatusLabel }
                 </Typography>
               )
             }
