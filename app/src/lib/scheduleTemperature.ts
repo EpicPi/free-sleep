@@ -1,21 +1,9 @@
 import moment from 'moment-timezone';
 
-import type { DayOfWeek, SideSchedule, Time } from '@api/schedulesSchema.ts';
-
-
-const DAYS_OF_WEEK: DayOfWeek[] = [
-  'sunday',
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-];
+import type { DailySchedule, Time } from '@api/schedulesSchema.ts';
 
 type TemperatureAdjustment = {
   occursAt: moment.Moment;
-  scheduleDay: DayOfWeek;
   temperatureF: number;
   time: Time;
 };
@@ -23,14 +11,8 @@ type TemperatureAdjustment = {
 type ScheduleInterval = {
   endsAt: moment.Moment;
   onTemperatureF: number;
-  scheduleDay: DayOfWeek;
   startsAt: moment.Moment;
   temperatureAdjustments: TemperatureAdjustment[];
-};
-
-const getScheduleDay = (scheduleDate: moment.Moment): DayOfWeek => {
-  const scheduleDay = scheduleDate.format('dddd').toLowerCase() as DayOfWeek;
-  return DAYS_OF_WEEK.includes(scheduleDay) ? scheduleDay : 'sunday';
 };
 
 const getTimeOnScheduleDate = (scheduleDate: moment.Moment, time: Time, timeZone: string) => {
@@ -46,14 +28,12 @@ const getTimeOnScheduleDate = (scheduleDate: moment.Moment, time: Time, timeZone
 };
 
 const getTemperatureAdjustments = (
-  sideSchedule: SideSchedule,
-  scheduleDay: DayOfWeek,
+  dailySchedule: DailySchedule,
   scheduleDate: moment.Moment,
   startsAt: moment.Moment,
   endsAt: moment.Moment,
   timeZone: string
 ): TemperatureAdjustment[] => {
-  const dailySchedule = sideSchedule[scheduleDay];
   const temperatureEntries = Object.entries(dailySchedule.temperatures) as [Time, number][];
 
   return temperatureEntries
@@ -63,7 +43,6 @@ const getTemperatureAdjustments = (
 
       return {
         occursAt,
-        scheduleDay,
         temperatureF,
         time,
       };
@@ -73,13 +52,10 @@ const getTemperatureAdjustments = (
 };
 
 const getScheduleInterval = (
-  sideSchedule: SideSchedule,
+  dailySchedule: DailySchedule,
   scheduleDate: moment.Moment,
   timeZone: string
 ): ScheduleInterval | undefined => {
-  const scheduleDay = getScheduleDay(scheduleDate);
-  const dailySchedule = sideSchedule[scheduleDay];
-
   if (!dailySchedule.power.enabled) return undefined;
 
   const startsAt = getTimeOnScheduleDate(scheduleDate, dailySchedule.power.on, timeZone);
@@ -89,11 +65,9 @@ const getScheduleInterval = (
   return {
     endsAt,
     onTemperatureF: dailySchedule.power.onTemperature,
-    scheduleDay,
     startsAt,
     temperatureAdjustments: getTemperatureAdjustments(
-      sideSchedule,
-      scheduleDay,
+      dailySchedule,
       scheduleDate,
       startsAt,
       endsAt,
@@ -103,16 +77,16 @@ const getScheduleInterval = (
 };
 
 const getScheduleIntervals = (
-  sideSchedule: SideSchedule,
+  dailySchedule: DailySchedule,
   timeZone: string,
   now: moment.Moment
 ): ScheduleInterval[] => {
   const intervals: ScheduleInterval[] = [];
 
-  // Search nearby schedule days so overnight intervals can be evaluated with absolute times.
+  // Search nearby dates so overnight intervals can be evaluated with absolute times.
   for (let dayOffset = -1; dayOffset <= 7; dayOffset++) {
     const scheduleDate = now.clone().tz(timeZone).startOf('day').add(dayOffset, 'day');
-    const interval = getScheduleInterval(sideSchedule, scheduleDate, timeZone);
+    const interval = getScheduleInterval(dailySchedule, scheduleDate, timeZone);
     if (interval) intervals.push(interval);
   }
 
@@ -120,23 +94,23 @@ const getScheduleIntervals = (
 };
 
 const getRelevantScheduleInterval = (
-  sideSchedule: SideSchedule,
+  dailySchedule: DailySchedule,
   timeZone: string,
   now: moment.Moment
 ) => {
-  const intervals = getScheduleIntervals(sideSchedule, timeZone, now);
+  const intervals = getScheduleIntervals(dailySchedule, timeZone, now);
   return intervals.find(interval => now.isBefore(interval.endsAt));
 };
 
 export const getScheduledTargetTemperature = (
-  sideSchedule: SideSchedule | undefined,
+  dailySchedule: DailySchedule | undefined,
   timeZone: string | undefined,
   now: moment.Moment = moment()
 ) => {
-  if (!sideSchedule || !timeZone) return undefined;
+  if (!dailySchedule || !timeZone) return undefined;
 
   const scheduleNow = now.clone().tz(timeZone);
-  const interval = getRelevantScheduleInterval(sideSchedule, timeZone, scheduleNow);
+  const interval = getRelevantScheduleInterval(dailySchedule, timeZone, scheduleNow);
   if (!interval) return undefined;
 
   if (scheduleNow.isBefore(interval.startsAt)) return interval.onTemperatureF;
@@ -150,14 +124,14 @@ export const getScheduledTargetTemperature = (
 };
 
 export const getNextScheduledTemperatureChange = (
-  sideSchedule: SideSchedule | undefined,
+  dailySchedule: DailySchedule | undefined,
   timeZone: string | undefined,
   now: moment.Moment = moment()
 ): TemperatureAdjustment | undefined => {
-  if (!sideSchedule || !timeZone) return undefined;
+  if (!dailySchedule || !timeZone) return undefined;
 
   const scheduleNow = now.clone().tz(timeZone);
-  const interval = getRelevantScheduleInterval(sideSchedule, timeZone, scheduleNow);
+  const interval = getRelevantScheduleInterval(dailySchedule, timeZone, scheduleNow);
   if (!interval) return undefined;
 
   return interval.temperatureAdjustments.find(adjustment => adjustment.occursAt.isAfter(scheduleNow));

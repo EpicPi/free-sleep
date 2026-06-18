@@ -1,11 +1,9 @@
 import _ from 'lodash';
 import { create } from 'zustand';
-import { DailySchedule, DayOfWeek, Schedules } from '@api/schedulesSchema.ts';
+import { DailySchedule, Schedules } from '@api/schedulesSchema.ts';
 import { DeepPartial } from 'ts-essentials';
 import { AccordionExpanded } from './SchedulePage.types.ts';
-import { DaysSelected } from './SchedulePage.types.ts';
 import { useAppStore } from '@state/appStore.tsx';
-import { LOWERCASE_DAYS } from './days';
 
 
 
@@ -16,16 +14,6 @@ type Validations = {
   // temperatureAdjustmentsValid: boolean,
 };
 
-export const DEFAULT_DAYS_SELECTED: DaysSelected = {
-  sunday: false,
-  monday: false,
-  tuesday: false,
-  wednesday: false,
-  thursday: false,
-  friday: false,
-  saturday: false,
-};
-
 const DEFAULT_VALIDATIONS: Validations = {
   powerOffTimeIsValid: true,
   alarmTimeIsValid: true,
@@ -33,9 +21,6 @@ const DEFAULT_VALIDATIONS: Validations = {
 };
 
 type ScheduleStore = {
-  selectedDay: DayOfWeek;
-  selectedDayIndex: number;
-  selectDay: (selectedDayIndex: number) => void;
   reloadScheduleData: () => void;
 
   changesPresent: boolean,
@@ -54,37 +39,23 @@ type ScheduleStore = {
   // Keep a copy of the original schedules
   originalSchedules: Schedules | undefined;
   setOriginalSchedules: (originalSchedules: Schedules) => void;
-
-  selectedDays: Record<DayOfWeek, boolean>;
-  toggleSelectedDay: (day: DayOfWeek) => void;
 };
 
 export const useScheduleStore = create<ScheduleStore>((set, get) => ({
-  selectedDay: 'sunday',
-  selectedDayIndex: 0,
   selectedSchedule: undefined,
 
   reloadScheduleData: () => {
     const { side } = useAppStore.getState();
-    const { originalSchedules, selectedDay } = get();
+    const { originalSchedules } = get();
     if (!originalSchedules) return;
-    const selectedSchedule = originalSchedules[side][selectedDay];
+    const selectedSchedule = _.cloneDeep(originalSchedules[side]);
 
     set({
-      selectedDays: { ...DEFAULT_DAYS_SELECTED },
       accordionExpanded: undefined,
       validations: { ...DEFAULT_VALIDATIONS },
       selectedSchedule,
       changesPresent: false,
     });
-  },
-
-  selectDay: (newSelectedDayIndex) => {
-    const { originalSchedules, reloadScheduleData } = get();
-    if (!originalSchedules) return;
-    const selectedDay = LOWERCASE_DAYS[newSelectedDayIndex];
-    set({ selectedDay, selectedDayIndex: newSelectedDayIndex });
-    reloadScheduleData();
   },
 
   accordionExpanded: undefined,
@@ -107,10 +78,10 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   },
   changesPresent: false,
   checkForChanges: () => {
-    const { selectedDay, selectedSchedule, originalSchedules, selectedDays } = get();
-    if (!originalSchedules) return;
+    const { selectedSchedule, originalSchedules } = get();
+    if (!originalSchedules || !selectedSchedule) return;
     const { side } = useAppStore.getState();
-    const changesPresent = !_.isEqual(originalSchedules[side][selectedDay], selectedSchedule) || _.some(selectedDays, value => value === true);
+    const changesPresent = !_.isEqual(originalSchedules[side], selectedSchedule);
 
     set({ changesPresent });
   },
@@ -118,6 +89,7 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
   // Updating schedules
   updateSelectedSchedule: (newSelectedSchedule) => {
     const { selectedSchedule, checkForChanges } = get();
+    if (!selectedSchedule) return;
     const selectedScheduleCopy = _.cloneDeep(selectedSchedule);
     _.merge(selectedScheduleCopy, newSelectedSchedule);
 
@@ -139,25 +111,12 @@ export const useScheduleStore = create<ScheduleStore>((set, get) => ({
     checkForChanges();
   },
 
-  selectedDays: { ...DEFAULT_DAYS_SELECTED },
-  toggleSelectedDay: (day) => {
-    const { selectedDays, checkForChanges } = get();
-    set({
-      selectedDays: {
-        ...selectedDays,
-        [day]: !selectedDays[day],
-      }
-    });
-    checkForChanges();
-  },
-
   originalSchedules: undefined,
   setOriginalSchedules: (originalSchedules) => {
     const { side } = useAppStore.getState();
-    const { selectedDay } = get();
     if (originalSchedules[side] === undefined) return;
-    const selectedSchedule = _.cloneDeep(originalSchedules[side][selectedDay]);
+    const selectedSchedule = _.cloneDeep(originalSchedules[side]);
 
-    set({ originalSchedules, selectedSchedule });
+    set({ originalSchedules, selectedSchedule, changesPresent: false });
   },
 }));

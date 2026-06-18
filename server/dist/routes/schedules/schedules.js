@@ -1,5 +1,3 @@
-
-!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[n]="72ddff58-2a09-526a-8dba-6b84d05651b5")}catch(e){}}();
 import _ from 'lodash';
 import express from 'express';
 import logger from '../../logger.js';
@@ -23,20 +21,18 @@ router.post('/schedules', async (req, res) => {
     }
     const schedules = validationResult.data;
     await schedulesDB.read();
-    Object.entries(schedules).forEach(([side, sideSchedule]) => {
-        Object.entries(sideSchedule).forEach(([day, schedule]) => {
-            if (schedule.power) {
-                _.merge(schedulesDB.data[side][day].power, schedule.power);
-            }
-            if (schedule.temperatures)
-                schedulesDB.data[side][day].temperatures = schedule.temperatures;
-            if (schedule.alarm)
-                schedulesDB.data[side][day].alarm = schedule.alarm;
-        });
+    Object.entries(schedules).forEach(([side, schedule]) => {
+        if (schedule.power) {
+            _.merge(schedulesDB.data[side].power, schedule.power);
+        }
+        if (schedule.temperatures)
+            schedulesDB.data[side].temperatures = schedule.temperatures;
+        if (schedule.alarm) {
+            _.merge(schedulesDB.data[side].alarm, schedule.alarm);
+        }
     });
     await schedulesDB.write();
     res.status(200).json(schedulesDB.data);
 });
 export default router;
 //# sourceMappingURL=schedules.js.map
-//# debugId=72ddff58-2a09-526a-8dba-6b84d05651b5

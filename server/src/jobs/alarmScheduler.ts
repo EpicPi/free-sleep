@@ -7,9 +7,9 @@ import memoryDB from '../db/memoryDB.js';
 import serverStatus from '../serverStatus.js';
 import schedulesDB from '../db/schedules.js';
 import settingsDB from '../db/settings.js';
-import { AlarmJob, DailySchedule, DayOfWeek, Side } from '../db/schedulesSchema.js';
+import { AlarmJob, DailySchedule, Side } from '../db/schedulesSchema.js';
 import { executeFunction } from '../8sleep/deviceApi.js';
-import { getDayIndexForSchedule, logJob } from './utils.js';
+import { logJob } from './utils.js';
 import { connectFranken } from '../8sleep/frankenServer.js';
 import { Settings } from '../db/settingsSchema.js';
 
@@ -94,6 +94,7 @@ export function scheduleAlarmOverride(settingsData: Settings, side: Side) {
   const alarmOverride = settingsData[side]?.scheduleOverrides?.alarm;
   if (!alarmOverride || alarmOverride.disabled) return null;
   if (!alarmOverride.timeOverride || !alarmOverride.expiresAt) return null;
+  if (!settingsData.timeZone) return null;
 
   const now = moment.tz(settingsData.timeZone);
   const expiresAt = moment.tz(alarmOverride.expiresAt, settingsData.timeZone);
@@ -102,10 +103,9 @@ export function scheduleAlarmOverride(settingsData: Settings, side: Side) {
   logger.debug(`Alarm override is set! Scheduling alarm for ${next.format()}`);
 
   schedule.scheduleJob(`${side}-alarm-override-${alarmOverride.timeOverride}`, next.toDate(), async () => {
-    const dayKey = next.tz(settingsData.timeZone).format('dddd').toLowerCase() as DayOfWeek;
-    const daySchedule = schedulesDB.data?.[side]?.[dayKey];
+    const dailySchedule = schedulesDB.data?.[side];
 
-    const { vibrationIntensity, duration, vibrationPattern } = daySchedule?.alarm ?? {
+    const { vibrationIntensity, duration, vibrationPattern } = dailySchedule?.alarm ?? {
       vibrationIntensity: 100,
       duration: 60,
       vibrationPattern: 'rise',
@@ -121,7 +121,7 @@ export function scheduleAlarmOverride(settingsData: Settings, side: Side) {
 }
 
 
-export const scheduleAlarm = (settingsData: Settings, side: Side, day: DayOfWeek, dailySchedule: DailySchedule) => {
+export const scheduleAlarm = (settingsData: Settings, side: Side, dailySchedule: DailySchedule) => {
   if (!dailySchedule.power.enabled) return;
   if (!dailySchedule.alarm.enabled) return;
   if (settingsData[side].awayMode) return;
@@ -129,27 +129,24 @@ export const scheduleAlarm = (settingsData: Settings, side: Side, day: DayOfWeek
 
   const alarmRule = new schedule.RecurrenceRule();
 
-  const dayIndex = getDayIndexForSchedule(day, dailySchedule.power.off);
-  alarmRule.dayOfWeek = dayIndex;
-
   const { time } = dailySchedule.alarm;
   const [alarmHour, alarmMinute] = time.split(':').map(Number);
   alarmRule.hour = alarmHour;
   alarmRule.minute = alarmMinute;
   alarmRule.tz = settingsData.timeZone;
 
-  logJob('Scheduling alarm job', side, day, dayIndex, time);
+  logJob('Scheduling alarm job', side, time);
 
-  schedule.scheduleJob(`${side}-${day}-${time}-alarm`, alarmRule, async () => {
+  schedule.scheduleJob(`${side}-${time}-alarm`, alarmRule, async () => {
     try {
-      logJob('Executing alarm job', side, day, dayIndex, time);
+      logJob('Executing alarm job', side, time);
       await settingsDB.read();
 
       if (settingsDB.data[side].scheduleOverrides.alarm.expiresAt) {
         const expiresAt = moment(settingsDB.data[side].scheduleOverrides.alarm.expiresAt);
         const now = moment();
         if (expiresAt.isAfter(now)) {
-          logJob(`Detected alarm override! Skipping alarm! Override expires at: ${expiresAt.format()}`, side, day, dayIndex, time);
+          logJob(`Detected alarm override! Skipping alarm! Override expires at: ${expiresAt.format()}`, side, time);
           return;
         }
       }
@@ -168,4 +165,3 @@ export const scheduleAlarm = (settingsData: Settings, side: Side, day: DayOfWeek
     }
   });
 };
-

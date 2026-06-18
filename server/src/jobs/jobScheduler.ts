@@ -8,7 +8,7 @@ import logger from '../logger.js';
 import schedulesDB from '../db/schedules.js';
 import serverStatus from '../serverStatus.js';
 import settingsDB from '../db/settings.js';
-import { DayOfWeek, Side } from '../db/schedulesSchema.js';
+import { Side } from '../db/schedulesSchema.js';
 import { isSystemDateValid } from './isSystemDateValid.js';
 import { scheduleAlarm, scheduleAlarmOverride } from './alarmScheduler.js';
 import { schedulePowerOffAndSleepAnalysis, schedulePowerOn } from './powerScheduler.js';
@@ -43,13 +43,11 @@ async function setupJobs() {
     logger.info('Scheduling jobs...');
     scheduleAlarmOverride(settingsData, 'left');
     scheduleAlarmOverride(settingsData, 'right');
-    Object.entries(schedulesData).forEach(([side, sideSchedule]) => {
-      Object.entries(sideSchedule).forEach(([day, schedule]) => {
-        schedulePowerOn(settingsData, side as Side, day as DayOfWeek, schedule.power);
-        schedulePowerOffAndSleepAnalysis(settingsData, side as Side, day as DayOfWeek, schedule.power);
-        scheduleTemperatures(settingsData, side as Side, day as DayOfWeek, schedule.temperatures);
-        scheduleAlarm(settingsData, side as Side, day as DayOfWeek, schedule);
-      });
+    Object.entries(schedulesData).forEach(([side, dailySchedule]) => {
+      schedulePowerOn(settingsData, side as Side, dailySchedule.power);
+      schedulePowerOffAndSleepAnalysis(settingsData, side as Side, dailySchedule.power);
+      scheduleTemperatures(settingsData, side as Side, dailySchedule.temperatures);
+      scheduleAlarm(settingsData, side as Side, dailySchedule);
     });
     schedulePrimingRebootAndCalibration(settingsData);
 
