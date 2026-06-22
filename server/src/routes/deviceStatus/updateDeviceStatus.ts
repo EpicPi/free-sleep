@@ -6,8 +6,10 @@ import { DeviceStatus, SideStatus } from './deviceStatusSchema.js';
 import { executeFunction } from '../../8sleep/deviceApi.js';
 import logger from '../../logger.js';
 import settingsDB from '../../db/settings.js';
+import schedulesDB from '../../db/schedules.js';
 import memoryDB from '../../db/memoryDB.js';
 import { INVERTED_SETTINGS_KEY_MAPPING } from '../../8sleep/loadDeviceStatus.js';
+import { getScheduledTargetTemperature } from '../../lib/scheduleTemperature.js';
 
 const calculateLevelFromF = (temperatureF: number) => {
   const level = (temperatureF - 82.5) / 27.5 * 100;
@@ -63,6 +65,29 @@ const updateSide = async (side: 'left' | 'right', sideStatus: DeepPartial<SideSt
   }
 };
 
+const applyScheduledPowerOnTemperature = async (
+  side: 'left' | 'right',
+  sideStatus: DeepPartial<SideStatus>,
+) => {
+  if (sideStatus.isOn !== true || sideStatus.targetTemperatureF !== undefined) return sideStatus;
+
+  // A bare power-on request should use the same scheduled target as "I'm back".
+  await settingsDB.read();
+  await schedulesDB.read();
+
+  const scheduledTargetTemperature = getScheduledTargetTemperature(
+    schedulesDB.data[side],
+    settingsDB.data.timeZone,
+  );
+
+  if (scheduledTargetTemperature === undefined) return sideStatus;
+
+  logger.info(`Using scheduled target temperature ${scheduledTargetTemperature} for ${side} side power on`);
+  return {
+    ...sideStatus,
+    targetTemperatureF: scheduledTargetTemperature,
+  };
+};
 
 const updateSettings = async (settings: Partial<DeviceStatus['settings']>) => {
   const renamedSettings = _.mapKeys(settings, (value, key) => INVERTED_SETTINGS_KEY_MAPPING[key] || key);
@@ -75,8 +100,8 @@ export const updateDeviceStatus = async (deviceStatus: DeepPartial<DeviceStatus>
   logger.info(`Updating device status..`);
 
   if (deviceStatus.isPriming) await executeFunction('PRIME');
-  if (deviceStatus?.left) await updateSide('left', deviceStatus.left);
-  if (deviceStatus?.right) await updateSide('right', deviceStatus.right);
+  if (deviceStatus?.left) await updateSide('left', await applyScheduledPowerOnTemperature('left', deviceStatus.left));
+  if (deviceStatus?.right) await updateSide('right', await applyScheduledPowerOnTemperature('right', deviceStatus.right));
   if (deviceStatus?.settings) await updateSettings(deviceStatus.settings);
   logger.info('Finished updating device status');
 };

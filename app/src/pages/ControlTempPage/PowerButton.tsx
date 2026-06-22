@@ -8,8 +8,6 @@ import { useSettings } from '@api/settings.ts';
 import { useState } from 'react';
 import { useServices } from '@api/services.ts';
 import { Job, postJobs } from '@api/jobs.ts';
-import { useSchedules } from '@api/schedules.ts';
-import { getScheduledTargetTemperature } from '@lib/scheduleTemperature.ts';
 import AnalyzeSleepNotification from './AnalyzeSleepNotification.tsx';
 
 
@@ -22,20 +20,15 @@ export default function PowerButton({ isOn }: PowerButtonProps) {
   const { data: settings } = useSettings();
   const { data: services } = useServices();
   const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
-  const { data: schedules } = useSchedules();
   const isInAwayMode = settings?.[side].awayMode;
   const disabled = isPending || isUpdating || isInAwayMode;
   const [showAnalyzeSleep, setShowAnalyzeSleep] = useState(false);
   const [showAnalyzeNotification, setShowAnalyzeNotification] = useState(false);
 
   const handleOnClick = (powerOn: boolean) => {
-    const scheduledTargetTemperature = powerOn
-      ? getScheduledTargetTemperature(schedules?.[side], settings?.timeZone)
-      : undefined;
     const deviceStatus: DeepPartial<DeviceStatus> = {
       [side]: {
         isOn: powerOn,
-        ...(scheduledTargetTemperature === undefined ? {} : { targetTemperatureF: scheduledTargetTemperature }),
       }
     };
     if (powerOn) {
