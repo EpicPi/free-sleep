@@ -5,7 +5,39 @@ import logger from '../../logger.js';
 const router = express.Router();
 
 import settingsDB from '../../db/settings.js';
+import schedulesDB from '../../db/schedules.js';
 import { SettingsSchema } from '../../db/settingsSchema.js';
+import { getScheduledTargetTemperature } from '../../lib/scheduleTemperature.js';
+import { updateDeviceStatus } from '../deviceStatus/updateDeviceStatus.js';
+import { Side } from '../../db/schedulesSchema.js';
+
+const SIDES: Side[] = ['left', 'right'];
+
+async function restoreReturningSidesToScheduledTargets(returningSides: Side[]) {
+  if (returningSides.length === 0) return;
+
+  await schedulesDB.read();
+
+  for (const side of returningSides) {
+    const scheduledTargetTemperature = getScheduledTargetTemperature(
+      schedulesDB.data[side],
+      settingsDB.data.timeZone,
+    );
+
+    if (scheduledTargetTemperature === undefined) {
+      logger.info(`No scheduled target temperature to restore for ${side} side`);
+      continue;
+    }
+
+    logger.info(`Restoring ${side} side to scheduled target temperature ${scheduledTargetTemperature}`);
+    await updateDeviceStatus({
+      [side]: {
+        isOn: true,
+        targetTemperatureF: scheduledTargetTemperature,
+      }
+    });
+  }
+}
 
 router.get('/settings', async (req: Request, res: Response) => {
   await settingsDB.read();
@@ -26,8 +58,10 @@ router.post('/settings', async (req: Request, res: Response) => {
   }
   delete body.id;
   await settingsDB.read();
+  const returningSides = SIDES.filter((side) => settingsDB.data[side].awayMode && body?.[side]?.awayMode === false);
   _.merge(settingsDB.data, body);
   await settingsDB.write();
+  await restoreReturningSidesToScheduledTargets(returningSides);
   res.status(200).json(settingsDB.data);
 });
 
