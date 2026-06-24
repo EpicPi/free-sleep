@@ -6,8 +6,10 @@ import { DeepPartial } from 'ts-essentials';
 
 import { getDeviceStatus, useDeviceStatusMutation } from '@api/deviceStatus.ts';
 import { DeviceStatus } from '@api/deviceStatusSchema.ts';
+import { getScheduledTargetTemperature } from '@lib/scheduleTemperature.ts';
 import { Settings } from '@api/settingsSchema.ts';
 import { postSettings, useSettings } from '@api/settings.ts';
+import { useSchedules } from '@api/schedules.ts';
 import { useAppStore } from '@state/appStore.tsx';
 
 export default function AwayModeToggle() {
@@ -15,6 +17,7 @@ export default function AwayModeToggle() {
   const { isUpdating, side } = useAppStore();
   const queryClient = useQueryClient();
   const { isPending, mutateDeviceStatus } = useDeviceStatusMutation();
+  const { data: schedules } = useSchedules();
   const [isSaving, setIsSaving] = useState(false);
 
   const sideName = settings?.[side]?.name || `${side.charAt(0).toUpperCase()}${side.slice(1)} side`;
@@ -53,6 +56,18 @@ export default function AwayModeToggle() {
     });
   };
 
+  const restoreReturnedSideToSchedule = async () => {
+    const scheduledTargetTemperature = getScheduledTargetTemperature(schedules?.[side], settings?.timeZone);
+    if (scheduledTargetTemperature === undefined) return;
+
+    await mutateDeviceStatus({
+      [side]: {
+        isOn: true,
+        targetTemperatureF: scheduledTargetTemperature,
+      }
+    });
+  };
+
   const handleClick = async () => {
     const awayMode = !checked;
     const nextSettings: DeepPartial<Settings> = side === 'left'
@@ -65,6 +80,8 @@ export default function AwayModeToggle() {
       await postSettings(nextSettings);
       if (awayMode) {
         await syncAwaySideToActiveSide();
+      } else {
+        await restoreReturnedSideToSchedule();
       }
     } catch (error) {
       console.error(error);
