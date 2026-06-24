@@ -8,8 +8,10 @@ import type { SleepRecord } from '@api/sleepSchema.ts';
 import type { VitalsRecord } from '@api/vitals.ts';
 import type { ServerStatus } from '@api/serverStatusSchema.ts';
 import type { Jobs } from '@api/jobs.ts';
+import { getScheduledTargetTemperature } from '@lib/scheduleTemperature.ts';
 
 type Side = 'left' | 'right';
+const SIDES: Side[] = ['left', 'right'];
 
 type LogStore = Record<string, string[]>;
 
@@ -455,17 +457,8 @@ export const updateSchedules = (partial: Partial<Schedules>) => {
   return schedules;
 };
 
-export const getSettings = () => settings;
-export const updateSettings = (partial: Partial<Settings>) => {
-  const partialCopy = { ...partial };
-  // Never allow overwriting the generated ID in demo mode
-  delete (partialCopy as { id?: string }).id;
-  settings = mergeDeep(clone(settings), partialCopy) as Settings;
-  return settings;
-};
-
 export const getDeviceStatus = () => deviceStatus;
-export const updateDeviceStatus = (partial: Partial<DeviceStatus>) => {
+export function updateDeviceStatus(partial: Partial<DeviceStatus>) {
   const controlBothSides = settings.left.awayMode || settings.right.awayMode;
   const fanoutPartial = clone(partial);
 
@@ -480,6 +473,31 @@ export const updateDeviceStatus = (partial: Partial<DeviceStatus>) => {
 
   deviceStatus = mergeDeep(clone(deviceStatus), fanoutPartial) as DeviceStatus;
   return deviceStatus;
+}
+
+export const getSettings = () => settings;
+export const updateSettings = (partial: Partial<Settings>) => {
+  const returningSides = SIDES.filter(side => (
+    settings[side].awayMode && partial[side]?.awayMode === false
+  ));
+  const partialCopy = { ...partial };
+  // Never allow overwriting the generated ID in demo mode
+  delete (partialCopy as { id?: string }).id;
+  settings = mergeDeep(clone(settings), partialCopy) as Settings;
+
+  returningSides.forEach(side => {
+    const scheduledTargetTemperature = getScheduledTargetTemperature(schedules[side], settings.timeZone);
+    if (scheduledTargetTemperature === undefined) return;
+
+    updateDeviceStatus({
+      [side]: {
+        isOn: true,
+        targetTemperatureF: scheduledTargetTemperature,
+      },
+    });
+  });
+
+  return settings;
 };
 
 export const getServerStatus = () => serverStatus;
