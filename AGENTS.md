@@ -21,6 +21,12 @@
 - Server hot reload on Pod: `fs-dev-server` per `server/README_SERVER.md`
 - Server local dev: `cd server && npm run dev:local`
 
+## Git Safety
+- Treat the user's fork as the working remote. In local clones, `origin` should be `https://github.com/EpicPi/free-sleep.git`; keep the original project only as `upstream`.
+- Before creating branches or worktrees, fetch `origin` and base new Codex branches on `origin/main` unless the user explicitly requests another base.
+- Never create Codex work from `upstream/main` or from a detached upstream commit. Use `upstream` only for comparison or intentional upstream sync work.
+- Do not push directly to `main`. Push feature branches to `origin` and open a PR to get code into the repo.
+
 ## Runtime Notes
 - `server/src/config.ts` requires `DATA_FOLDER` and `ENV`; Pod runtime gets these through `server/.env.pod` via `npm start`.
 - `server/src/jobs/jobScheduler.ts` schedules jobs at import time and watches the LowDB folder for changes. Writes to settings or schedules trigger full job cancellation and recreation.
@@ -55,5 +61,4 @@
 - Any complicated functions should have concise, short comments explaining what the function does
 - Do not write obscure code with abbreviated variable names <= 2 characters
 - Scalability is important, don't write one off hacks. Ensure new files and code are placed in appropriate locations.
-
 
