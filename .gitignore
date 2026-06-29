@@ -18,6 +18,8 @@ server/lowdb/*
 server/~/free-sleep-database
 !.gitkeep
 app/dist/
+server/dist/
+server/public/
 
 /server/free-sleep-data/*
 

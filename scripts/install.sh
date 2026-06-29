@@ -5,12 +5,9 @@ set -euo pipefail
 # --------------------------------------------------------------------------------
 # Variables
 FREE_SLEEP_REPO="${FREE_SLEEP_REPO:-EpicPi/free-sleep}"
-FREE_SLEEP_BRANCH="${FREE_SLEEP_BRANCH:-main}"
 DEFAULT_DEPLOYABLE_URL="https://github.com/${FREE_SLEEP_REPO}/releases/latest/download/free-sleep.tar.gz"
-FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-}"
-SOURCE_REPO_URL="https://github.com/${FREE_SLEEP_REPO}/archive/refs/heads/${FREE_SLEEP_BRANCH}.zip"
+FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-$DEFAULT_DEPLOYABLE_URL}"
 DEPLOYABLE_FILE="free-sleep-deployable.tar.gz"
-SOURCE_ZIP_FILE="free-sleep-source.zip"
 INSTALL_WORK_DIR="/tmp/free-sleep-install-$$"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
@@ -36,57 +33,22 @@ find_extracted_directory() {
 }
 
 download_deployable() {
-  local deployable_url="$1"
   local archive_path="$INSTALL_WORK_DIR/$DEPLOYABLE_FILE"
   local extract_directory="$INSTALL_WORK_DIR/deployable"
 
   mkdir -p "$extract_directory"
-  echo "Downloading deployable from $deployable_url..."
-  if ! curl -fL -o "$archive_path" "$deployable_url"; then
-    echo "Unable to download deployable from $deployable_url"
-    return 1
-  fi
+  echo "Downloading deployable from $FREE_SLEEP_DEPLOYABLE_URL..."
+  curl -fL -o "$archive_path" "$FREE_SLEEP_DEPLOYABLE_URL"
 
   echo "Extracting deployable..."
   tar -xzf "$archive_path" -C "$extract_directory"
   EXTRACTED_DIR="$(find_extracted_directory "$extract_directory")"
 }
 
-download_source_archive() {
-  local archive_path="$INSTALL_WORK_DIR/$SOURCE_ZIP_FILE"
-  local extract_directory="$INSTALL_WORK_DIR/source"
-
-  mkdir -p "$extract_directory"
-  echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH} source archive..."
-  curl -fL -o "$archive_path" "$SOURCE_REPO_URL"
-
-  echo ""
-  echo "Unzipping the source archive..."
-  unzip -o -q "$archive_path" -d "$extract_directory"
-  EXTRACTED_DIR="$(find_extracted_directory "$extract_directory")"
-}
-
 # --------------------------------------------------------------------------------
-# Download the repository
+# Download the deployable
 mkdir -p "$INSTALL_WORK_DIR"
-
-USE_DEPLOYABLE="false"
-if [ -n "$FREE_SLEEP_DEPLOYABLE_URL" ] || [ "$FREE_SLEEP_BRANCH" = "main" ]; then
-  USE_DEPLOYABLE="true"
-fi
-
-if [ -z "$FREE_SLEEP_DEPLOYABLE_URL" ]; then
-  FREE_SLEEP_DEPLOYABLE_URL="$DEFAULT_DEPLOYABLE_URL"
-fi
-
-if [ "$USE_DEPLOYABLE" = "true" ]; then
-  if ! download_deployable "$FREE_SLEEP_DEPLOYABLE_URL"; then
-    echo "Falling back to source archive install..."
-    download_source_archive
-  fi
-else
-  download_source_archive
-fi
+download_deployable
 
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
