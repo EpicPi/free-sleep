@@ -1,0 +1,93 @@
+name: Deployable
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - server/src/serverInfo.json
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and publish deployable
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: |
+            ./app/package-lock.json
+            ./server/package-lock.json
+
+      - name: Read version
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_version="$(node -p "require('./server/src/serverInfo.json').version")"
+          echo "version=$release_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$release_version" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies (app)
+        working-directory: app
+        run: npm ci
+
+      - name: Install dependencies (server)
+        working-directory: server
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: server
+        run: npm run generate
+
+      - name: Build server
+        working-directory: server
+        run: npm run build:pr
+
+      - name: Build app
+        working-directory: app
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: npm run build
+
+      - name: Package deployable
+        run: scripts/build_deployable.sh
+
+      - name: Publish GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_notes="Deployable generated from ${GITHUB_SHA} for Free Sleep ${RELEASE_VERSION}."
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              "deployable/free-sleep.tar.gz#free-sleep.tar.gz" \
+              "deployable/free-sleep-${RELEASE_VERSION}.tar.gz#free-sleep-${RELEASE_VERSION}.tar.gz" \
+              --clobber
+            gh release edit "$RELEASE_TAG" \
+              --title "Free Sleep ${RELEASE_VERSION}" \
+              --notes "$release_notes" \
+              --latest
+          else
+            gh release create "$RELEASE_TAG" \
+              "deployable/free-sleep.tar.gz#free-sleep.tar.gz" \
+              "deployable/free-sleep-${RELEASE_VERSION}.tar.gz#free-sleep-${RELEASE_VERSION}.tar.gz" \
+              --title "Free Sleep ${RELEASE_VERSION}" \
+              --notes "$release_notes" \
+              --latest
+          fi

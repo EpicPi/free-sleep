@@ -6,10 +6,11 @@ import info from '../server/src/serverInfo.json';
 
 const isDemoMode = process.env.VITE_ENV === 'demo';
 const isProdMode = process.env.VITE_ENV === 'prod';
+const shouldUploadSentrySourcemaps = isProdMode && Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 const plugins = [react(), tsconfigPaths()];
 
-if (isProdMode) {
+if (shouldUploadSentrySourcemaps) {
   plugins.push(sentryVitePlugin({
     org: 'free-sleep',
     project: 'app',

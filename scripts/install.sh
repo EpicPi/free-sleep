@@ -5,34 +5,44 @@ set -euo pipefail
 # --------------------------------------------------------------------------------
 # Variables
 FREE_SLEEP_REPO="${FREE_SLEEP_REPO:-EpicPi/free-sleep}"
-FREE_SLEEP_BRANCH="${FREE_SLEEP_BRANCH:-main}"
-REPO_URL="https://github.com/${FREE_SLEEP_REPO}/archive/refs/heads/${FREE_SLEEP_BRANCH}.zip"
-ZIP_FILE="free-sleep.zip"
+DEFAULT_DEPLOYABLE_URL="https://github.com/${FREE_SLEEP_REPO}/releases/latest/download/free-sleep.tar.gz"
+FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-$DEFAULT_DEPLOYABLE_URL}"
+DEPLOYABLE_FILE="free-sleep-deployable.tar.gz"
+INSTALL_WORK_DIR="/tmp/free-sleep-install-$$"
+EXTRACTED_REPO_DIR="$INSTALL_WORK_DIR/free-sleep"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
 USERNAME="dac"
 
-# --------------------------------------------------------------------------------
-# Download the repository
-echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH}..."
-curl -L -o "$ZIP_FILE" "$REPO_URL"
-# Keep awk reading the full listing so BusyBox unzip does not hit SIGPIPE under pipefail.
-EXTRACTED_DIR="$(unzip -l "$ZIP_FILE" | awk 'NR > 3 && $4 ~ /\// && !found { split($4, pathParts, "/"); print pathParts[1]; found = 1 }')"
-if [ -z "$EXTRACTED_DIR" ]; then
-  echo "Unable to determine extracted repository directory from $ZIP_FILE"
-  exit 1
-fi
+cleanup() {
+  rm -rf "$INSTALL_WORK_DIR"
+}
+trap cleanup EXIT
 
-echo ""
-echo "Unzipping the repository..."
-unzip -o -q "$ZIP_FILE"
-echo "Removing the zip file..."
-rm -f "$ZIP_FILE"
+download_deployable() {
+  local archive_path="$INSTALL_WORK_DIR/$DEPLOYABLE_FILE"
+
+  echo "Downloading deployable from $FREE_SLEEP_DEPLOYABLE_URL..."
+  curl -fL -o "$archive_path" "$FREE_SLEEP_DEPLOYABLE_URL"
+
+  echo "Extracting deployable..."
+  tar -xzf "$archive_path" -C "$INSTALL_WORK_DIR"
+
+  if [ ! -d "$EXTRACTED_REPO_DIR" ]; then
+    echo "Deployable archive must contain a top-level free-sleep directory."
+    return 1
+  fi
+}
+
+# --------------------------------------------------------------------------------
+# Download the deployable
+mkdir -p "$INSTALL_WORK_DIR"
+download_deployable
 
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
 rm -rf "$REPO_DIR"
-mv "$EXTRACTED_DIR" "$REPO_DIR"
+mv "$EXTRACTED_REPO_DIR" "$REPO_DIR"
 
 
 chown -R "$USERNAME":"$USERNAME" "$REPO_DIR"

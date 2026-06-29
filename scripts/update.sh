@@ -23,6 +23,7 @@ BACKUP_PATH="/home/dac/free-sleep-backup"
 APP_DIR="/home/dac/free-sleep"
 FREE_SLEEP_REPO="${FREE_SLEEP_REPO:-EpicPi/free-sleep}"
 FREE_SLEEP_BRANCH="${FREE_SLEEP_BRANCH:-main}"
+FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-}"
 INSTALL_URL="https://raw.githubusercontent.com/${FREE_SLEEP_REPO}/${FREE_SLEEP_BRANCH}/scripts/install.sh"
 
 systemctl stop free-sleep
@@ -39,7 +40,10 @@ fi
 
 echo "Attempting to reinstall free-sleep..."
 echo "Using ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH}"
-if FREE_SLEEP_REPO="$FREE_SLEEP_REPO" FREE_SLEEP_BRANCH="$FREE_SLEEP_BRANCH" /bin/bash -c "$(curl -fsSL "$INSTALL_URL")"; then
+if FREE_SLEEP_REPO="$FREE_SLEEP_REPO" \
+  FREE_SLEEP_BRANCH="$FREE_SLEEP_BRANCH" \
+  FREE_SLEEP_DEPLOYABLE_URL="$FREE_SLEEP_DEPLOYABLE_URL" \
+  /bin/bash -c "$(curl -fsSL "$INSTALL_URL")"; then
   echo "Reinstall successful."
   rm -rf "$BACKUP_PATH"
   if [ -d "$APP_DIR" ]; then
