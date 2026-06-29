@@ -9,40 +9,29 @@ DEFAULT_DEPLOYABLE_URL="https://github.com/${FREE_SLEEP_REPO}/releases/latest/do
 FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-$DEFAULT_DEPLOYABLE_URL}"
 DEPLOYABLE_FILE="free-sleep-deployable.tar.gz"
 INSTALL_WORK_DIR="/tmp/free-sleep-install-$$"
+EXTRACTED_REPO_DIR="$INSTALL_WORK_DIR/free-sleep"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
 USERNAME="dac"
-EXTRACTED_DIR=""
 
 cleanup() {
   rm -rf "$INSTALL_WORK_DIR"
 }
 trap cleanup EXIT
 
-find_extracted_directory() {
-  local parent_directory="$1"
-  local extracted_directory
-
-  extracted_directory="$(find "$parent_directory" -mindepth 1 -maxdepth 1 -type d -print -quit)"
-  if [ -z "$extracted_directory" ]; then
-    echo "Unable to determine extracted repository directory in $parent_directory"
-    return 1
-  fi
-
-  echo "$extracted_directory"
-}
-
 download_deployable() {
   local archive_path="$INSTALL_WORK_DIR/$DEPLOYABLE_FILE"
-  local extract_directory="$INSTALL_WORK_DIR/deployable"
 
-  mkdir -p "$extract_directory"
   echo "Downloading deployable from $FREE_SLEEP_DEPLOYABLE_URL..."
   curl -fL -o "$archive_path" "$FREE_SLEEP_DEPLOYABLE_URL"
 
   echo "Extracting deployable..."
-  tar -xzf "$archive_path" -C "$extract_directory"
-  EXTRACTED_DIR="$(find_extracted_directory "$extract_directory")"
+  tar -xzf "$archive_path" -C "$INSTALL_WORK_DIR"
+
+  if [ ! -d "$EXTRACTED_REPO_DIR" ]; then
+    echo "Deployable archive must contain a top-level free-sleep directory."
+    return 1
+  fi
 }
 
 # --------------------------------------------------------------------------------
@@ -53,7 +42,7 @@ download_deployable
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
 rm -rf "$REPO_DIR"
-mv "$EXTRACTED_DIR" "$REPO_DIR"
+mv "$EXTRACTED_REPO_DIR" "$REPO_DIR"
 
 
 chown -R "$USERNAME":"$USERNAME" "$REPO_DIR"
