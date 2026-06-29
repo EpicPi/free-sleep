@@ -6,28 +6,87 @@ set -euo pipefail
 # Variables
 FREE_SLEEP_REPO="${FREE_SLEEP_REPO:-EpicPi/free-sleep}"
 FREE_SLEEP_BRANCH="${FREE_SLEEP_BRANCH:-main}"
-REPO_URL="https://github.com/${FREE_SLEEP_REPO}/archive/refs/heads/${FREE_SLEEP_BRANCH}.zip"
-ZIP_FILE="free-sleep.zip"
+DEFAULT_DEPLOYABLE_URL="https://github.com/${FREE_SLEEP_REPO}/releases/latest/download/free-sleep.tar.gz"
+FREE_SLEEP_DEPLOYABLE_URL="${FREE_SLEEP_DEPLOYABLE_URL:-}"
+SOURCE_REPO_URL="https://github.com/${FREE_SLEEP_REPO}/archive/refs/heads/${FREE_SLEEP_BRANCH}.zip"
+DEPLOYABLE_FILE="free-sleep-deployable.tar.gz"
+SOURCE_ZIP_FILE="free-sleep-source.zip"
+INSTALL_WORK_DIR="/tmp/free-sleep-install-$$"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
 USERNAME="dac"
+EXTRACTED_DIR=""
+
+cleanup() {
+  rm -rf "$INSTALL_WORK_DIR"
+}
+trap cleanup EXIT
+
+find_extracted_directory() {
+  local parent_directory="$1"
+  local extracted_directory
+
+  extracted_directory="$(find "$parent_directory" -mindepth 1 -maxdepth 1 -type d -print -quit)"
+  if [ -z "$extracted_directory" ]; then
+    echo "Unable to determine extracted repository directory in $parent_directory"
+    return 1
+  fi
+
+  echo "$extracted_directory"
+}
+
+download_deployable() {
+  local deployable_url="$1"
+  local archive_path="$INSTALL_WORK_DIR/$DEPLOYABLE_FILE"
+  local extract_directory="$INSTALL_WORK_DIR/deployable"
+
+  mkdir -p "$extract_directory"
+  echo "Downloading deployable from $deployable_url..."
+  if ! curl -fL -o "$archive_path" "$deployable_url"; then
+    echo "Unable to download deployable from $deployable_url"
+    return 1
+  fi
+
+  echo "Extracting deployable..."
+  tar -xzf "$archive_path" -C "$extract_directory"
+  EXTRACTED_DIR="$(find_extracted_directory "$extract_directory")"
+}
+
+download_source_archive() {
+  local archive_path="$INSTALL_WORK_DIR/$SOURCE_ZIP_FILE"
+  local extract_directory="$INSTALL_WORK_DIR/source"
+
+  mkdir -p "$extract_directory"
+  echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH} source archive..."
+  curl -fL -o "$archive_path" "$SOURCE_REPO_URL"
+
+  echo ""
+  echo "Unzipping the source archive..."
+  unzip -o -q "$archive_path" -d "$extract_directory"
+  EXTRACTED_DIR="$(find_extracted_directory "$extract_directory")"
+}
 
 # --------------------------------------------------------------------------------
 # Download the repository
-echo "Downloading ${FREE_SLEEP_REPO}@${FREE_SLEEP_BRANCH}..."
-curl -L -o "$ZIP_FILE" "$REPO_URL"
-# Keep awk reading the full listing so BusyBox unzip does not hit SIGPIPE under pipefail.
-EXTRACTED_DIR="$(unzip -l "$ZIP_FILE" | awk 'NR > 3 && $4 ~ /\// && !found { split($4, pathParts, "/"); print pathParts[1]; found = 1 }')"
-if [ -z "$EXTRACTED_DIR" ]; then
-  echo "Unable to determine extracted repository directory from $ZIP_FILE"
-  exit 1
+mkdir -p "$INSTALL_WORK_DIR"
+
+USE_DEPLOYABLE="false"
+if [ -n "$FREE_SLEEP_DEPLOYABLE_URL" ] || [ "$FREE_SLEEP_BRANCH" = "main" ]; then
+  USE_DEPLOYABLE="true"
 fi
 
-echo ""
-echo "Unzipping the repository..."
-unzip -o -q "$ZIP_FILE"
-echo "Removing the zip file..."
-rm -f "$ZIP_FILE"
+if [ -z "$FREE_SLEEP_DEPLOYABLE_URL" ]; then
+  FREE_SLEEP_DEPLOYABLE_URL="$DEFAULT_DEPLOYABLE_URL"
+fi
+
+if [ "$USE_DEPLOYABLE" = "true" ]; then
+  if ! download_deployable "$FREE_SLEEP_DEPLOYABLE_URL"; then
+    echo "Falling back to source archive install..."
+    download_source_archive
+  fi
+else
+  download_source_archive
+fi
 
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
