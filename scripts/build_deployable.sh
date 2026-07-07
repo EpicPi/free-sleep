@@ -17,6 +17,7 @@ rsync -a "$REPOSITORY_ROOT/" "$STAGING_APP/" \
   --exclude ".git" \
   --exclude ".github" \
   --exclude ".codex" \
+  --exclude "node_modules" \
   --exclude "app/node_modules" \
   --exclude "app/dist" \
   --exclude "docs" \

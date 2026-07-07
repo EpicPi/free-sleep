@@ -13,13 +13,14 @@
 - `docs/`: user-facing screenshots and hardware teardown/install docs.
 
 ## Common Commands
-- App typecheck: `cd app && npx tsc -b`
-- App lint: `cd app && npm run lint`
-- App dev server: `cd app && VITE_POD_IP=<pod-ip> npm run dev`
-- Server typecheck without writing `dist`: `cd server && npx tsc --noEmit`
-- Server lint: `cd server && npm run lint`
+- Install dependencies: `bun install`
+- App typecheck: `cd app && bunx tsc -b`
+- App lint: `bun --filter app lint`
+- App dev server: `cd app && VITE_POD_IP=<pod-ip> bun run dev`
+- Server typecheck without writing `dist`: `cd server && bunx tsc --noEmit`
+- Server lint: `bun --filter server lint`
 - Server hot reload on Pod: `fs-dev-server` per `server/README_SERVER.md`
-- Server local dev: `cd server && npm run dev:local`
+- Server local dev: `bun --filter server dev:local`
 
 ## Git Safety
 - Treat the user's fork as the working remote. In local clones, `origin` should be `https://github.com/EpicPi/free-sleep.git`; keep the original project only as `upstream`.
@@ -28,7 +29,7 @@
 - Do not push directly to `main`. Push feature branches to `origin` and open a PR to get code into the repo.
 
 ## Runtime Notes
-- `server/src/config.ts` requires `DATA_FOLDER` and `ENV`; Pod runtime gets these through `server/.env.pod` via `npm start`.
+- `server/src/config.ts` requires `DATA_FOLDER` and `ENV`; Pod runtime gets these through `server/.env.pod` via `bun run start`.
 - `server/src/jobs/jobScheduler.ts` schedules jobs at import time and watches the LowDB folder for changes. Writes to settings or schedules trigger full job cancellation and recreation.
 - Schedule data is stored in `schedulesDB.json`; settings are stored in `settingsDB.json`; service health is stored in `servicesDB.json`.
 - The app imports schemas directly from `server/src/db/*Schema.ts`; schema changes must remain compatible with both app and server TypeScript settings.
@@ -61,4 +62,3 @@
 - Any complicated functions should have concise, short comments explaining what the function does
 - Do not write obscure code with abbreviated variable names <= 2 characters
 - Scalability is important, don't write one off hacks. Ensure new files and code are placed in appropriate locations.
-

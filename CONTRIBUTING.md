@@ -34,11 +34,11 @@ If you want to explore an alternative UI direction, please do so in a fork or se
 ## 3. Don’t switch core tooling
 Tools like:
 - Volta (for Node version management)
-- npm (for package management)
+- Bun (for package management)
 - TypeScript
 - Prettier / ESLint configuration
 
-These are intentionally chosen and should not be replaced with alternatives like Bun, Yarn, or other system-wide changes.
+These are intentionally chosen and should not be replaced with alternatives like npm, pnpm, Yarn, or other system-wide changes.
 
 If you think a tool could be upgraded or swapped, please discuss it first in Discord. The Pod has a finicky environment and stability is important.
 
@@ -51,7 +51,7 @@ If you think a tool could be upgraded or swapped, please discuss it first in Dis
 
 
 ## 5. Code Style & Quality
-- Run `npm run lint` & `npm run build` in both server/ and app/ before opening a PR.
+- Run `bun run lint` and `bun run build:pr` before opening a PR.
 - Keep changes clean, consistent, and focused on a single purpose.
 
 

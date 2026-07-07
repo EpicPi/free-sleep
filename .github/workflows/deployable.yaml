@@ -23,10 +23,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: |
-            ./app/package-lock.json
-            ./server/package-lock.json
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
       - name: Read version
         id: metadata
@@ -38,27 +39,22 @@ jobs:
           echo "version=$release_version" >> "$GITHUB_OUTPUT"
           echo "tag=v$release_version" >> "$GITHUB_OUTPUT"
 
-      - name: Install dependencies (app)
-        working-directory: app
-        run: npm ci
+      - name: Install dependencies
+        run: bun ci
 
-      - name: Install dependencies (server)
-        working-directory: server
-        run: npm ci
+      - name: Audit production dependencies
+        run: bun audit --prod --audit-level=high
 
       - name: Generate Prisma client
-        working-directory: server
-        run: npm run generate
+        run: bun --filter server generate
 
       - name: Build server
-        working-directory: server
-        run: npm run build:pr
+        run: bun --filter server build:pr
 
       - name: Build app
-        working-directory: app
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: npm run build
+        run: bun --filter app build
 
       - name: Package deployable
         run: scripts/build_deployable.sh

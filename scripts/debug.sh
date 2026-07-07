@@ -54,7 +54,7 @@ check_service_status() {
 
 check_free_sleep_install() {
   local base_dir="/home/dac/free-sleep"
-  local node_modules_dir="$base_dir/server/node_modules"
+  local node_modules_dir="$base_dir/node_modules"
 
   if [ ! -d "$base_dir" ]; then
     print_red "  - $base_dir does not exist. ❌"
@@ -161,4 +161,3 @@ check_free_sleep_install
 check_local_server
 
 echo "--------------------------------------------- END REPORT ---------------------------------------------"
-
