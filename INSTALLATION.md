@@ -196,6 +196,15 @@ nmcli connection reload
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/EpicPi/free-sleep/main/scripts/install.sh)"
 ```
 
+The installer handles the runtime and package tooling on the Pod:
+- Installs/updates Node through Volta for running the server.
+- Installs a pinned Bun release for package management.
+- Verifies the Bun archive checksum before installing it.
+- Installs only the server dependencies needed on the Pod.
+- Runs Prisma generation and database migrations before starting `free-sleep.service`.
+
+Do not run `npm install` manually on the Pod. If the install fails, run `fs-debug` and share the output in Discord or a GitHub issue.
+
 ---
 
 

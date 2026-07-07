@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import winston from 'winston';
-import moment from 'moment';
+import moment from 'moment-timezone';
 
 const logDir = '/persistent/free-sleep-data/logs';
 const logFile = path.join(logDir, 'free-sleep.log');

@@ -1,0 +1,8 @@
+[install]
+linker = "isolated"
+saveTextLockfile = true
+minimumReleaseAge = 259200
+minimumReleaseAgeExcludes = [
+  "@types/node",
+  "typescript"
+]

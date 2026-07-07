@@ -10,13 +10,13 @@ Express server intended to run on the 8 sleep pod.
 ```
 fs-dev-server
 
-# When you're done, undo this by CTR+C out of the npm run dev command & run:
+# When you're done, undo this by CTR+C out of the Bun dev command & run:
 systemctl start free-sleep
 ```
 2. Run the front-end app with hot reload and point it to your Pod [app/README_APP.md](../app/README_APP.md#Developing)
 
 ### Hot Reloading (on computer, not your Pod)
-- `npm run dev:local`
+- `bun run dev:local`
 
 
 ### My development process
@@ -76,20 +76,21 @@ The server is composed of the following key components:
 
 ### Prerequisites
 - Volta for node version control
+- Bun for package management
 
 ### Setup
 1. Clone the repository.
 2. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 3. Build the project:
    ```bash
-   npm run build
+   bun run build
    ```
 4. Start the server:
    ```bash
-   npm start
+   bun run start
    ```
 
 ---
@@ -112,6 +113,5 @@ server/
 ```
 
 ---
-
 
 

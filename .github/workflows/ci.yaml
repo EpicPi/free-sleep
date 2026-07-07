@@ -16,30 +16,26 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: |
-            ./app/package-lock.json
-            ./server/package-lock.json
 
-      - name: Install dependencies (app)
-        working-directory: app
-        run: npm ci
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
-      - name: Install dependencies (server)
-        working-directory: server
-        run: npm ci
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Audit production dependencies
+        run: bun audit --prod --audit-level=high
 
       - name: Generate Prisma client
-        working-directory: server
-        run: npm run generate
+        run: bun --filter server generate
 
       - name: Build (server)
-        working-directory: server
-        run: npm run build:pr
+        run: bun --filter server build:pr
 
       - name: Build (app)
-        working-directory: app
-        run: npm run build:pr
+        run: bun --filter app build:pr
 
       - name: Require clean working directory
         run: |
@@ -52,16 +48,6 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        package-name:
-          - app
-          - server
-
-    defaults:
-      run:
-        working-directory: ${{ matrix.package-name }}
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -70,11 +56,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
-          cache: 'npm'
-          cache-dependency-path: ./${{ matrix.package-name }}/package-lock.json
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
       - name: Install dependencies
-        run: npm ci
+        run: bun ci
 
       - name: Lint
-        run: npm run lint
+        run: bun run lint

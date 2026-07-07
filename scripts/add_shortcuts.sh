@@ -13,7 +13,7 @@ SHORTCUTS=(
   "alias fs-reset='sh /home/dac/free-sleep/scripts/reset.sh'"
   "alias fs-reset-db='sh /home/dac/free-sleep/scripts/reset_db.sh'"
   "alias fs-update='sh /home/dac/free-sleep/scripts/update.sh'"
-  "alias fs-dev-server='systemctl stop free-sleep && su - dac -c \"cd /home/dac/free-sleep/server && /home/dac/.volta/bin/npm run dev\"'"
+  "alias fs-dev-server='systemctl stop free-sleep && su - dac -c \"cd /home/dac/free-sleep/server && BUN_INSTALL=/home/dac/.bun PATH=/home/dac/.bun/bin:/home/dac/.volta/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin /home/dac/.bun/bin/bun run dev\"'"
 )
 
 echo "Adding shortcuts to $PROFILE_FILE_PATH..."

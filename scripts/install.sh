@@ -13,6 +13,12 @@ EXTRACTED_REPO_DIR="$INSTALL_WORK_DIR/free-sleep"
 REPO_DIR="/home/dac/free-sleep"
 SERVER_DIR="$REPO_DIR/server"
 USERNAME="dac"
+BUN_VERSION="${BUN_VERSION:-1.3.14}"
+BUN_ARCHIVE_NAME="bun-linux-aarch64.zip"
+BUN_ARCHIVE_SHA256="${BUN_ARCHIVE_SHA256:-a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b}"
+BUN_DOWNLOAD_URL="${BUN_DOWNLOAD_URL:-https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${BUN_ARCHIVE_NAME}}"
+BUN_INSTALL_DIR="/home/$USERNAME/.bun"
+BUN_BIN="$BUN_INSTALL_DIR/bin/bun"
 
 cleanup() {
   rm -rf "$INSTALL_WORK_DIR"
@@ -32,6 +38,43 @@ download_deployable() {
     echo "Deployable archive must contain a top-level free-sleep directory."
     return 1
   fi
+}
+
+install_or_update_bun() {
+  case "$(uname -m)" in
+    aarch64|arm64)
+      ;;
+    *)
+      echo "Unsupported architecture for Bun on the Pod: $(uname -m)"
+      return 1
+      ;;
+  esac
+
+  local archive_path="$INSTALL_WORK_DIR/$BUN_ARCHIVE_NAME"
+  local extract_dir="$INSTALL_WORK_DIR/bun"
+
+  echo "Installing/ensuring Bun $BUN_VERSION..."
+  curl -fL -o "$archive_path" "$BUN_DOWNLOAD_URL"
+  echo "$BUN_ARCHIVE_SHA256  $archive_path" | sha256sum -c -
+
+  rm -rf "$extract_dir"
+  mkdir -p "$extract_dir" "$BUN_INSTALL_DIR/bin"
+  unzip -q "$archive_path" -d "$extract_dir"
+  cp "$extract_dir/bun-linux-aarch64/bun" "$BUN_BIN"
+  chmod 755 "$BUN_BIN"
+  chown -R "$USERNAME":"$USERNAME" "$BUN_INSTALL_DIR"
+
+  if ! grep -q 'export BUN_INSTALL=' "/home/$USERNAME/.profile"; then
+    cat >> "/home/$USERNAME/.profile" <<'EOF'
+
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+EOF
+  fi
+
+  sudo -u "$USERNAME" "$BUN_BIN" --version
+  echo "Finished installing Bun"
+  echo ""
 }
 
 # --------------------------------------------------------------------------------
@@ -70,6 +113,10 @@ fi
 # Install (or update) Node via Volta
 echo "Installing/ensuring Node 24.11.0 via Volta..."
 sudo -u "$USERNAME" bash -c "source /home/$USERNAME/.profile && volta install node@24.11.0"
+
+# --------------------------------------------------------------------------------
+# Install (or update) Bun package manager
+install_or_update_bun
 
 # --------------------------------------------------------------------------------
 # Setup /persistent/free-sleep-data (migrate old configs, logs, etc.)
@@ -128,12 +175,12 @@ chmod g+s /persistent/free-sleep-data/
 # --------------------------------------------------------------------------------
 # Install server dependencies
 
-BACKUP_PATH="/home/dac/free-sleep-backup/server/package-lock.json"
-NEW_PATH="/home/dac/free-sleep/server/package-lock.json"
-NODE_MODULES_BACKUP="/home/dac/free-sleep-backup/server/node_modules"
-NODE_MODULES_NEW="/home/dac/free-sleep/server/node_modules"
+BACKUP_PATH="/home/dac/free-sleep-backup/bun.lock"
+NEW_PATH="/home/dac/free-sleep/bun.lock"
+NODE_MODULES_BACKUP="/home/dac/free-sleep-backup/node_modules"
+NODE_MODULES_NEW="/home/dac/free-sleep/node_modules"
 
-echo "Reviewing npm dependencies for changes..."
+echo "Reviewing Bun dependencies for changes..."
 if [ -f "$BACKUP_PATH" ] && [ -f "$NEW_PATH" ]; then
   BACKUP_HASH=$(sha256sum "$BACKUP_PATH" | awk '{print $1}')
   NEW_HASH=$(sha256sum "$NEW_PATH" | awk '{print $1}')
@@ -142,23 +189,27 @@ if [ -f "$BACKUP_PATH" ] && [ -f "$NEW_PATH" ]; then
   echo "New hash: $NEW_HASH"
 
   if [ "$BACKUP_HASH" != "$NEW_HASH" ]; then
-    echo "package-lock.json changed — running npm install..."
-    sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && /home/$USERNAME/.volta/bin/npm install"
+    echo "bun.lock changed - running Bun install..."
+    sudo -u "$USERNAME" bash -c "cd '$REPO_DIR' && '$BUN_BIN' install --filter server --omit dev --frozen-lockfile"
   else
-    echo "package-lock.json unchanged — restoring node_modules from backup..."
+    echo "bun.lock unchanged - restoring node_modules from backup..."
     if [ -d "$NODE_MODULES_BACKUP" ]; then
       mv "$NODE_MODULES_BACKUP" "$NODE_MODULES_NEW"
       chown -R "$USERNAME:$USERNAME" "$NODE_MODULES_NEW" || true
       echo "node_modules restored from backup."
     else
-      echo "Backup node_modules not found, running npm install instead..."
-      sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && /home/$USERNAME/.volta/bin/npm install"
+      echo "Backup node_modules not found, running Bun install instead..."
+      sudo -u "$USERNAME" bash -c "cd '$REPO_DIR' && '$BUN_BIN' install --filter server --omit dev --frozen-lockfile"
     fi
   fi
 else
-  echo "One or both package-lock.json files missing, running npm install..."
-  sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && /home/$USERNAME/.volta/bin/npm install"
+  echo "One or both bun.lock files missing, running Bun install..."
+  sudo -u "$USERNAME" bash -c "cd '$REPO_DIR' && '$BUN_BIN' install --filter server --omit dev --frozen-lockfile"
 fi
+echo ""
+
+echo "Generating Prisma client..."
+sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && '$BUN_BIN' run generate"
 echo ""
 
 # --------------------------------------------------------------------------------
@@ -196,7 +247,7 @@ rm -f /persistent/free-sleep-data/free-sleep.db-shm \
 migration_failed="false"
 
 echo "Running Prisma migrations..."
-if sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && /home/$USERNAME/.volta/bin/npm run migrate deploy"; then
+if sudo -u "$USERNAME" bash -c "cd '$SERVER_DIR' && '$BUN_BIN' run migrate:deploy"; then
   echo "Prisma migrations completed successfully."
 else
   migration_failed="true"
@@ -225,13 +276,14 @@ Description=Free Sleep Server
 After=network.target
 
 [Service]
-ExecStart=/home/$USERNAME/.volta/bin/npm run start
+ExecStart=/home/$USERNAME/.bun/bin/bun run start
 WorkingDirectory=$SERVER_DIR
 Restart=always
 User=$USERNAME
 Environment=NODE_ENV=production
 Environment=VOLTA_HOME=/home/$USERNAME/.volta
-Environment=PATH=/home/$USERNAME/.volta/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
+Environment=BUN_INSTALL=/home/$USERNAME/.bun
+Environment=PATH=/home/$USERNAME/.bun/bin:/home/$USERNAME/.volta/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin
 
 [Install]
 WantedBy=multi-user.target
